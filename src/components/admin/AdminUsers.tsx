@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { formatNumber, getRelativeTime } from '@/lib/format';
-import { Search, Shield, ShieldOff, UserCog, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Shield, ShieldOff, UserCog, ChevronLeft, ChevronRight, Crown, ShieldCheck, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import type { UserRole, PaginatedResponse } from '@/lib/types';
+import type { UserRole } from '@/lib/types';
+import { ROLE_LABELS } from '@/lib/types';
 
-const ROLES: UserRole[] = ['MEMBER', 'BUSINESS', 'ADMIN'];
+const ALL_ROLES: UserRole[] = ['MEMBER', 'BUSINESS', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN'];
+
+function RoleIcon({ role, className = 'w-5 h-5' }: { role: string; className?: string }) {
+  switch (role) {
+    case 'SUPER_ADMIN': return <Crown className={className} />;
+    case 'ADMIN': return <ShieldCheck className={className} />;
+    case 'MODERATOR': return <Eye className={className} />;
+    case 'BUSINESS': return <Shield className={className} />;
+    default: return <ShieldOff className={className} />;
+  }
+}
 
 interface UserRow {
   id: string;
@@ -41,7 +52,6 @@ export function AdminUsers() {
   const [total, setTotal] = useState(0);
   const limit = 20;
 
-  // Edit dialog
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editRole, setEditRole] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -102,18 +112,16 @@ export function AdminUsers() {
     } catch (err) { console.error('[AdminUsers active]', err); }
   };
 
-  const roleColor = (role: string): React.CSSProperties => {
-    const colors: Record<string, { backgroundColor: string; color: string }> = {
-      MEMBER: { backgroundColor: '#6b7280', color: '#ffffff' },
-      BUSINESS: { backgroundColor: '#9333ea', color: '#ffffff' },
-      ADMIN: { backgroundColor: '#059669', color: '#ffffff' },
-    };
-    return colors[role] || colors.MEMBER;
+  const roleBadgeStyle = (role: string): React.CSSProperties => {
+    const label = ROLE_LABELS[role as UserRole];
+    if (label) {
+      return { backgroundColor: label.color, color: '#ffffff' };
+    }
+    return { backgroundColor: '#6b7280', color: '#ffffff' };
   };
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -132,7 +140,14 @@ export function AdminUsers() {
               className="h-10 rounded-md border bg-background px-3 text-sm"
             >
               <option value="">Todos los roles</option>
-              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              {ALL_ROLES.map((r) => {
+                const label = ROLE_LABELS[r];
+                return (
+                  <option key={r} value={r}>
+                    {label ? (locale === 'es' ? label.es : label.en) : r}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </CardContent>
@@ -151,7 +166,6 @@ export function AdminUsers() {
         </div>
       </div>
 
-      {/* Users Table */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -200,7 +214,12 @@ export function AdminUsers() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{user.email}</td>
                       <td className="px-4 py-3">
-                        <Badge className="border-transparent" style={roleColor(user.role)}>{user.role}</Badge>
+                        <Badge className="border-transparent" style={roleBadgeStyle(user.role)}>
+                          {(() => {
+                            const label = ROLE_LABELS[user.role as UserRole];
+                            return label ? (locale === 'es' ? label.es : label.en) : user.role;
+                          })()}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3 text-center hidden sm:table-cell">
                         <button onClick={() => toggleVerified(user)} className="inline-flex">
@@ -230,33 +249,45 @@ export function AdminUsers() {
         </div>
       </Card>
 
-      {/* Edit Role Dialog */}
       <Dialog open={!!editUser} onOpenChange={() => setEditUser(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{tp('admin.editRole')}</DialogTitle>
           </DialogHeader>
           {editUser && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <p className="text-sm">{editUser.name} <span className="text-muted-foreground">({editUser.email})</span></p>
               <div className="space-y-2">
-                {ROLES.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setEditRole(r)}
-                    className={`w-full p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 ${
-                      editRole === r ? 'border-primary bg-primary/5' : 'border-transparent hover:border-muted'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      r === 'ADMIN' ? 'bg-emerald-100 text-emerald-700' :
-                      r === 'BUSINESS' ? 'bg-purple-100 text-purple-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>{r[0]}</div>
-                    <span className="font-medium text-sm">{r}</span>
-                    {editRole === r && <div className="ml-auto w-4 h-4 rounded-full bg-primary flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-primary-foreground" /></div>}
-                  </button>
-                ))}
+                {ALL_ROLES.map((r) => {
+                  const label = ROLE_LABELS[r];
+                  const roleName = label ? (locale === 'es' ? label.es : label.en) : r;
+                  const desc = label ? (locale === 'es' ? label.description.es : label.description.en) : '';
+                  const isSelected = editRole === r;
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => setEditRole(r)}
+                      className={`w-full p-3 rounded-lg border-2 text-left transition-all flex items-start gap-3 ${
+                        isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-muted'
+                      }`}
+                    >
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        r === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700 dark:bg-red-900/30' :
+                        r === 'ADMIN' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30' :
+                        r === 'MODERATOR' ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30' :
+                        r === 'BUSINESS' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30' :
+                        'bg-gray-100 text-gray-700 dark:bg-gray-800'
+                      }`}>
+                        <RoleIcon role={r} className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-sm">{roleName}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                      </div>
+                      {isSelected && <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0 mt-1"><div className="w-2 h-2 rounded-full bg-primary-foreground" /></div>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

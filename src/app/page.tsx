@@ -17,7 +17,6 @@ import { ArticleReadingView } from '@/components/modals/ArticleReadingView';
 import { ListingFullView } from '@/components/modals/ListingFullView';
 import { EventFullView } from '@/components/modals/EventFullView';
 import { AdminPage } from '@/components/admin/AdminPage';
-import { AdminLoginDialog } from '@/components/admin/AdminLoginDialog';
 import { AnunciosPage } from '@/components/pages/AnunciosPage';
 import { EventosPage } from '@/components/pages/EventosPage';
 
@@ -32,19 +31,16 @@ import { FavoritosPage } from '@/components/pages/FavoritosPage';
 import { useModalStore, __registerHistoryPush } from '@/lib/modal-store';
 import { useAdminStore } from '@/lib/admin-store';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { useNavigation, pushNavigationState } from '@/hooks/use-navigation';
 
 export default function Home() {
-  useNavigation(); // Initialize browser history sync
+  useNavigation();
 
-  // Register history push function with the store
   useEffect(() => {
     __registerHistoryPush(pushNavigationState);
   }, []);
 
-  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const currentView = useModalStore((s) => s.currentView);
@@ -52,38 +48,24 @@ export default function Home() {
   const setAdminView = useModalStore((s) => s.setAdminView);
   const isAuthenticated = !!session?.user;
 
-  // Admin access: requires user session + admin URL param or admin store
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setAdminView(false);
-      return;
-    }
-    const shouldShow = searchParams.get('admin') === '1' || isAdmin;
-    if (shouldShow) setAdminView(true);
-  }, [searchParams, isAdmin, setAdminView, isAuthenticated]);
-
+  // All hooks before any early return
   const isArticleReadingView = useModalStore((s) => s.isArticleReadingView);
   const isListingFullView = useModalStore((s) => s.isListingFullView);
   const isEventFullView = useModalStore((s) => s.isEventFullView);
   const selectedListing = useModalStore((s) => s.selectedListing);
   const selectedEvent = useModalStore((s) => s.selectedEvent);
 
+  // When user logs out, exit admin view
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setAdminView(false);
+      useAdminStore.getState().logout();
+    }
+  }, [isAuthenticated, setAdminView]);
+
   // Admin: requires both user session AND admin password
   if (isAdminView && isAdmin && isAuthenticated) {
     return <AdminPage />;
-  }
-
-  // Admin login popup: show only if user is authenticated but not yet admin-verified
-  if (isAdminView && isAuthenticated && !isAdmin) {
-    return (
-      <>
-        <Navbar />
-        <main className="flex-1" style={{ minHeight: '100vh' }} />
-        <Footer />
-        <AdminLoginDialog />
-        <HomeModals />
-      </>
-    );
   }
 
   const renderMain = () => {
@@ -142,7 +124,6 @@ export default function Home() {
       <main className="flex-1">{renderMain()}</main>
       <Footer />
       <HomeModals />
-      {isAdminView && <AdminPage />}
     </div>
   );
 }

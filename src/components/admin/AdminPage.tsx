@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useAdminStore } from '@/lib/admin-store';
+import { useAdminStore, isAdminRole } from '@/lib/admin-store';
 import { useModalStore } from '@/lib/modal-store';
-import { AdminLogin } from './AdminLogin';
 import { AdminLayout } from './AdminLayout';
 import { AdminDashboard } from './AdminDashboard';
 import { AdminListings } from './AdminListings';
@@ -11,13 +10,9 @@ import { AdminPromotions } from './AdminPromotions';
 import { AdminUsers } from './AdminUsers';
 import { AdminCategories } from './AdminCategories';
 import { AdminPayments } from './AdminPayments';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
+import type { UserRole } from '@/lib/types';
 
 const pages: Record<string, React.FC> = {
   dashboard: AdminDashboard,
@@ -29,10 +24,11 @@ const pages: Record<string, React.FC> = {
 };
 
 export function AdminPage() {
-  const { isAdmin, logout, activePage } = useAdminStore();
+  const { isAdmin, logout, activePage, userRole, setSessionRole } = useAdminStore();
   const setAdminView = useModalStore((s) => s.setAdminView);
   const { data: session } = useSession();
   const isAuthenticated = !!session?.user;
+  const sessionRole = session?.user?.role as UserRole | undefined;
   const prevDarkClass = useRef<boolean | null>(null);
 
   useEffect(() => {
@@ -45,42 +41,55 @@ export function AdminPage() {
     };
   }, []);
 
-  // Not logged in as user: block access entirely
+  // Not logged in as user: block access
   if (!isAuthenticated) {
     setAdminView(false);
+    useAdminStore.getState().logout();
     return null;
   }
 
-  // Not logged in as admin: show the admin password popup
-  if (!isAdmin) {
+  // Check if user has an admin role
+  if (!isAdminRole(sessionRole)) {
+    setAdminView(false);
+    useAdminStore.getState().logout();
+    return null;
+  }
+
+  // Set session role in store if admin verified but not yet set
+  if (isAdmin && sessionRole && session?.user?.name) {
+    const store = useAdminStore.getState();
+    if (!store.userRole) {
+      store.setSessionRole(sessionRole, session.user.name);
+    }
+  }
+
+  if (isAdmin) {
+    const handleBack = () => {
+      logout();
+      setAdminView(false);
+    };
+
+    const allowedPages = useAdminStore.getState().getAllowedPages();
+    if (allowedPages.length > 0 && !allowedPages.includes(activePage)) {
+      useAdminStore.getState().setActivePage(allowedPages[0]);
+    }
+
+    const PageComponent = pages[activePage] || AdminDashboard;
+
     return (
-      <Dialog open onOpenChange={(open) => { if (!open) setAdminView(false); }}>
-        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
-          <DialogTitle className="sr-only">Admin Login</DialogTitle>
-          <AdminLogin />
-        </DialogContent>
-      </Dialog>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="min-h-screen bg-slate-50"
+      >
+        <AdminLayout onBack={handleBack}>
+          <PageComponent />
+        </AdminLayout>
+      </motion.div>
     );
   }
 
-  // Logged in: full admin panel
-  const handleBack = () => {
-    logout();
-    setAdminView(false);
-  };
-
-  const PageComponent = pages[activePage] || AdminDashboard;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
-      className="min-h-screen bg-slate-50"
-    >
-      <AdminLayout onBack={handleBack}>
-        <PageComponent />
-      </AdminLayout>
-    </motion.div>
-  );
+  setAdminView(false);
+  return null;
 }

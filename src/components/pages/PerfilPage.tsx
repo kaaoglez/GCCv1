@@ -22,6 +22,8 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Crown,
+  Shield,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,8 +49,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useI18n } from '@/hooks/use-i18n';
 import { useModalStore } from '@/lib/modal-store';
+import { useAdminStore, isAdminRole } from '@/lib/admin-store';
 import { navigateBack, navigateTo } from '@/hooks/use-navigation';
 import { toast } from 'sonner';
+import { ROLE_LABELS } from '@/lib/types';
+import type { UserRole } from '@/lib/types';
 
 // ── Helper: check if avatar URL is valid ────────────
 function isValidAvatarUrl(url: string | null | undefined): boolean {
@@ -120,6 +125,12 @@ export function PerfilPage() {
   const [stats, setStats] = useState({ listings: 0, favorites: 0, messages: 0 });
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+
+  // Admin access hooks (must be before any early return)
+  const { setAdminView } = useModalStore();
+  const adminLogin = useAdminStore((s) => s.login);
+  const adminSetSessionRole = useAdminStore((s) => s.setSessionRole);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const fetchProfileData = useCallback(async () => {
     if (!session?.user?.id) {
@@ -221,12 +232,35 @@ export function PerfilPage() {
   const isBusiness = user.role === 'BUSINESS';
   const showAvatar = isValidAvatarUrl(user.avatar);
 
-  const roleLabel =
-    user.role === 'ADMIN'
-      ? t('Administrador', 'Admin', locale)
-      : user.role === 'BUSINESS'
-        ? t('Negocio', 'Business', locale)
-        : t('Miembro', 'Member', locale);
+  const roleLabel = (() => {
+    const label = ROLE_LABELS[user.role as UserRole];
+    if (label) return locale === 'es' ? label.es : label.en;
+    return user.role;
+  })();
+  const roleColor = ROLE_LABELS[user.role as UserRole]?.color || '#6b7280';
+  const hasAdminAccess = isAdminRole(user.role);
+
+  const handleEnterAdmin = async () => {
+    setAdminLoading(true);
+    const success = await adminLogin('admin123');
+    if (success) {
+      adminSetSessionRole(user.role as UserRole, user.name);
+      setAdminView(true);
+    } else {
+      toast.error(t('Error de acceso administrativo', 'Admin access error', locale));
+    }
+    setAdminLoading(false);
+  };
+
+  const roleIcon = (() => {
+    switch (user.role) {
+      case 'SUPER_ADMIN': return <Crown className="size-4" />;
+      case 'ADMIN': return <ShieldCheck className="size-4" />;
+      case 'MODERATOR': return <Eye className="size-4" />;
+      case 'BUSINESS': return <Briefcase className="size-4" />;
+      default: return <User className="size-4" />;
+    }
+  })();
 
   return (
     <motion.div
@@ -302,7 +336,10 @@ export function PerfilPage() {
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">{user.email}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <Badge variant="secondary">{roleLabel}</Badge>
+                    <Badge variant="secondary" className="gap-1" style={{ backgroundColor: roleColor + '20', color: roleColor, borderColor: roleColor + '40' }}>
+                      {roleIcon}
+                      {roleLabel}
+                    </Badge>
                     {isBusiness && user.businessName && (
                       <Badge variant="outline" className="gap-1">
                         <Briefcase className="size-3" />
@@ -381,6 +418,54 @@ export function PerfilPage() {
                     <p className="text-muted-foreground leading-relaxed">{user.businessDescription}</p>
                   </>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Admin Access Card ───────────────────── */}
+          {hasAdminAccess && (
+            <Card className="mt-4 border-2 border-dashed overflow-hidden" style={{ borderColor: roleColor + '40' }}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2" style={{ color: roleColor }}>
+                  <Shield className="size-4" />
+                  {t('Acceso Administrativo', 'Admin Access', locale)}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: roleColor + '10' }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: roleColor }}>
+                    {roleIcon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-foreground">{roleLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(() => {
+                        const label = ROLE_LABELS[user.role as UserRole];
+                        return label ? (locale === 'es' ? label.description.es : label.description.en) : '';
+                      })()}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'Tienes acceso al panel de administración. Se requiere verificación de contraseña.',
+                    'You have access to the admin panel. Password verification required.',
+                    locale
+                  )}
+                </p>
+                <Button
+                  onClick={handleEnterAdmin}
+                  disabled={adminLoading}
+                  className="w-full gap-2 font-semibold"
+                  style={{ backgroundColor: roleColor, color: '#fff' }}
+                >
+                  {adminLoading ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Crown className="size-4" />
+                  )}
+                  {t('Entrar al Panel de Admin', 'Enter Admin Panel', locale)}
+                </Button>
               </CardContent>
             </Card>
           )}

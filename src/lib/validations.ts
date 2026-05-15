@@ -36,7 +36,7 @@ export const createListingSchema = z.object({
 
 export const adminUpdateUserSchema = z.object({
   userId: z.string().min(1, 'userId is required'),
-  role: z.enum(['MEMBER', 'BUSINESS', 'ADMIN'] as const).optional(),
+  role: z.enum(['MEMBER', 'BUSINESS', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN'] as const).optional(),
   isVerified: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
@@ -51,7 +51,7 @@ export const adminUpdateUserFieldsSchema = z.object({
   phone: z.string().optional(),
   bio: z.string().optional(),
   municipality: z.string().optional(),
-  role: z.enum(['MEMBER', 'BUSINESS', 'ADMIN'] as const).optional(),
+  role: z.enum(['MEMBER', 'BUSINESS', 'MODERATOR', 'ADMIN', 'SUPER_ADMIN'] as const).optional(),
   language: z.string().optional(),
   isVerified: z.boolean().optional(),
   isActive: z.boolean().optional(),

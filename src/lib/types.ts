@@ -14,7 +14,45 @@ export type EventStatus = 'UPCOMING' | 'ONGOING' | 'PAST' | 'CANCELLED';
 export type ArticleCategory = 'ENVIRONMENT' | 'COMMUNITY' | 'BUSINESS' | 'SUSTAINABILITY' | 'TOURISM' | 'GENERAL';
 export type PaymentType = 'LISTING_POST' | 'VIP_UPGRADE' | 'HIGHLIGHT_UPGRADE' | 'BUMP' | 'BUSINESS_PLAN';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'REFUNDED' | 'FAILED';
-export type UserRole = 'MEMBER' | 'BUSINESS' | 'ADMIN';
+export type UserRole = 'MEMBER' | 'BUSINESS' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
+
+/** Admin panel permissions by role */
+export const ADMIN_ROLES: UserRole[] = ['SUPER_ADMIN', 'ADMIN', 'MODERATOR'];
+
+export const ROLE_LABELS: Record<UserRole, { es: string; en: string; color: string; description: { es: string; en: string } }> = {
+  MEMBER: {
+    es: 'Miembro', en: 'Member', color: '#6b7280',
+    description: { es: 'Usuario registrado', en: 'Registered user' },
+  },
+  BUSINESS: {
+    es: 'Negocio', en: 'Business', color: '#9333ea',
+    description: { es: 'Cuenta de negocio con directorio comercial', en: 'Business account with commercial directory' },
+  },
+  MODERATOR: {
+    es: 'Moderador', en: 'Moderator', color: '#0891b2',
+    description: { es: 'Modera anuncios y categorías', en: 'Moderates listings and categories' },
+  },
+  ADMIN: {
+    es: 'Administrador', en: 'Administrator', color: '#059669',
+    description: { es: 'Gestión completa del sitio', en: 'Full site management' },
+  },
+  SUPER_ADMIN: {
+    es: 'Super Administrador', en: 'Super Administrator', color: '#dc2626',
+    description: { es: 'Acceso total y gestión de roles', en: 'Total access and role management' },
+  },
+};
+
+/** Which admin pages each role can access */
+export type AdminPageKey = 'dashboard' | 'listings' | 'promotions' | 'users' | 'categories' | 'payments';
+
+export const ROLE_PAGE_PERMISSIONS: Record<UserRole, AdminPageKey[]> = {
+  MEMBER: [],
+  BUSINESS: [],
+  MODERATOR: ['dashboard', 'listings', 'users', 'categories'],
+  ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments'],
+  SUPER_ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments'],
+};
+
 export type Language = 'ES' | 'EN';
 export type ContactMethod = 'message' | 'phone' | 'email' | 'whatsapp';
 export type FacilityType = 'ecoparque' | 'container' | 'clean_point' | 'specialized';

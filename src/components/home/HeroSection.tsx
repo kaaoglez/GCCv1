@@ -22,7 +22,7 @@ import type { CategoryDTO } from '@/lib/types';
 
 export function HeroSection() {
   const { locale, tp } = useI18n();
-  const openPostAd = useModalStore((s) => s.openPostAd);
+  const openPostAdPage = useModalStore((s) => s.openPostAdPage);
   const openAuth = useModalStore((s) => s.openAuth);
   const { data: session } = useSession();
   const openSearch = useModalStore((s) => s.openSearch);
@@ -161,7 +161,7 @@ export function HeroSection() {
                   openAuth();
                   return;
                 }
-                openPostAd();
+                openPostAdPage();
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg gap-2 px-6"
             >

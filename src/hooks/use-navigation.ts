@@ -33,6 +33,7 @@ const VIEW_TITLES: Record<PageView, string> = {
 export interface HistoryState {
   view: PageView;
   selectedCategoryId: string | null;
+  isPostAdPage: boolean;
   isListingFullView: boolean;
   isEventFullView: boolean;
   isArticleReadingView: boolean;
@@ -46,6 +47,7 @@ function readStoreState(): HistoryState {
   return {
     view: s.currentView,
     selectedCategoryId: s.selectedCategoryId,
+    isPostAdPage: s.isPostAdPage,
     isListingFullView: s.isListingFullView,
     isEventFullView: s.isEventFullView,
     isArticleReadingView: s.isArticleReadingView,
@@ -62,7 +64,11 @@ function updateTitle(view: PageView) {
 // ── Push: new entry in history (user navigated forward) ──
 export function pushNavigationState() {
   const state = readStoreState();
-  updateTitle(state.view);
+  if (state.isPostAdPage) {
+    document.title = 'Publicar Anuncio · Gran Canaria Conecta';
+  } else {
+    updateTitle(state.view);
+  }
   window.history.pushState(state, '', `#/${state.view}`);
 }
 
@@ -81,6 +87,7 @@ export function navigateTo(view: PageView, extra?: { categoryId?: string }) {
   try {
     const store = useModalStore.getState();
     // Close any open full views first
+    if (store.isPostAdPage) store.closePostAdPage();
     if (store.isListingFullView) store.closeListingFullView();
     if (store.isEventFullView) store.closeEventFullView();
     if (store.isArticleReadingView) store.closeArticleReadingView();
@@ -100,10 +107,11 @@ export function navigateTo(view: PageView, extra?: { categoryId?: string }) {
 // ── Navigate to the same page or home (replace, not push) ──
 export function navigateToSameOrHome(view: PageView) {
   const store = useModalStore.getState();
-  const alreadyThere = store.currentView === view && !store.isListingFullView && !store.isEventFullView && !store.isArticleReadingView;
-  
+  const alreadyThere = store.currentView === view && !store.isPostAdPage && !store.isListingFullView && !store.isEventFullView && !store.isArticleReadingView;
+
   __skipHistoryPush(true);
   try {
+    if (store.isPostAdPage) store.closePostAdPage();
     if (store.isListingFullView) store.closeListingFullView();
     if (store.isEventFullView) store.closeEventFullView();
     if (store.isArticleReadingView) store.closeArticleReadingView();
@@ -112,7 +120,7 @@ export function navigateToSameOrHome(view: PageView) {
   } finally {
     __skipHistoryPush(false);
   }
-  
+
   if (alreadyThere) {
     // Same page: just replace (no new history entry)
     replaceNavigationState();
@@ -135,9 +143,15 @@ function restoreState(state: HistoryState) {
 
     // View
     if (store.currentView !== state.view) store.setCurrentView(state.view);
-    
+
     // Category filter
     if (store.selectedCategoryId !== state.selectedCategoryId) store.setSelectedCategoryId(state.selectedCategoryId);
+
+    // Post Ad Page
+    if (state.isPostAdPage !== store.isPostAdPage) {
+      if (state.isPostAdPage) store.openPostAdPage();
+      else store.closePostAdPage();
+    }
 
     // Listing full view
     if (state.isListingFullView !== store.isListingFullView) {
@@ -169,11 +183,15 @@ function restoreState(state: HistoryState) {
       }
     }
 
-    updateTitle(state.view);
+    if (state.isPostAdPage) {
+      document.title = 'Publicar Anuncio · Gran Canaria Conecta';
+    } else {
+      updateTitle(state.view);
+    }
   } finally {
     __skipHistoryPush(false);
   }
-  
+
   // Always scroll to top when going back — the user expects to see the top of the previous page
   window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 }
@@ -200,6 +218,7 @@ export function useNavigation() {
           const store = useModalStore.getState();
           store.setCurrentView('home');
           store.setSelectedCategoryId(null);
+          if (store.isPostAdPage) store.closePostAdPage();
           if (store.isListingFullView) store.closeListingFullView();
           if (store.isEventFullView) store.closeEventFullView();
           if (store.isArticleReadingView) store.closeArticleReadingView();

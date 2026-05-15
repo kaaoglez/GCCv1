@@ -43,6 +43,11 @@ interface ModalState {
   openPostAd: () => void;
   closePostAd: () => void;
 
+  // Post Ad Page (full-page nav — pushes history on open only)
+  isPostAdPage: boolean;
+  openPostAdPage: () => void;
+  closePostAdPage: () => void;
+
   // Listing Detail Modal (overlay — no history push)
   selectedListing: ListingDTO | null;
   isListingDetailOpen: boolean;
@@ -122,6 +127,14 @@ export const useModalStore = create<ModalState>()((set) => ({
   isPostAdOpen: false,
   openPostAd: () => set({ isPostAdOpen: true }),
   closePostAd: () => set({ isPostAdOpen: false }),
+
+  // ── Post Ad Page: full-page, push on OPEN only ──
+  isPostAdPage: false,
+  openPostAdPage: () =>
+    { set({ isPostAdOpen: false, isPostAdPage: true }); tryPushHistory(); },
+  closePostAdPage: () =>
+    // NO push — back navigation is handled by popstate or navigateBack()
+    { set({ isPostAdPage: false }); },
 
   // ── Listing Detail Modal: overlay, no history ──
   selectedListing: null,

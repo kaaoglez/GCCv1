@@ -350,7 +350,7 @@ export function Navbar() {
                 openAuth();
                 return;
               }
-              useModalStore.getState().openPostAd();
+              useModalStore.getState().openPostAdPage();
             }}
           >
             <Plus className="h-4 w-4" />
@@ -532,7 +532,7 @@ export function Navbar() {
                       openAuth();
                       return;
                     }
-                    useModalStore.getState().openPostAd();
+                    useModalStore.getState().openPostAdPage();
                   }}>
                     <Plus className="h-4 w-4" />
                     {tp('nav', 'postAd')}

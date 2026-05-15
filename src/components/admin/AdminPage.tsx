@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 
 const pages: Record<string, React.FC> = {
   dashboard: AdminDashboard,
@@ -30,6 +31,8 @@ const pages: Record<string, React.FC> = {
 export function AdminPage() {
   const { isAdmin, logout, activePage } = useAdminStore();
   const setAdminView = useModalStore((s) => s.setAdminView);
+  const { data: session } = useSession();
+  const isAuthenticated = !!session?.user;
   const prevDarkClass = useRef<boolean | null>(null);
 
   useEffect(() => {
@@ -42,7 +45,13 @@ export function AdminPage() {
     };
   }, []);
 
-  // Not logged in: just the login popup (page.tsx shows the site behind)
+  // Not logged in as user: block access entirely
+  if (!isAuthenticated) {
+    setAdminView(false);
+    return null;
+  }
+
+  // Not logged in as admin: show the admin password popup
   if (!isAdmin) {
     return (
       <Dialog open onOpenChange={(open) => { if (!open) setAdminView(false); }}>

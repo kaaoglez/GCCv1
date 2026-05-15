@@ -58,8 +58,8 @@ export function AdminListings() {
       try {
         const res = await fetch(`/api/admin/listings?${params}`);
         const data: PaginatedResponse<ListingDTO> = await res.json();
-        if (!cancelled) { setListings(data.data); setTotalPages(data.totalPages); setTotal(data.total); }
-      } catch {}
+        if (!cancelled) { setListings(Array.isArray(data.data) ? data.data : []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); }
+      } catch (err) { console.error('[AdminListings load]', err); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -70,7 +70,7 @@ export function AdminListings() {
     fetch('/api/categories?locale=' + locale)
       .then((r) => r.json())
       .then((data) => { if (!cancelled) setCategories(data); })
-      .catch(() => {});
+      .catch((err) => console.error('[AdminListings categories]', err));
     return () => { cancelled = true; };
   }, [locale]);
 
@@ -87,7 +87,7 @@ export function AdminListings() {
       });
       setTierDialogOpen(false);
       reload();
-    } catch {}
+    } catch (err) { console.error('[AdminListings tier]', err); }
     setActionLoading(false);
   };
 
@@ -102,7 +102,7 @@ export function AdminListings() {
       });
       setDetailOpen(false);
       reload();
-    } catch {}
+    } catch (err) { console.error('[AdminListings status]', err); }
     setActionLoading(false);
   };
 
@@ -113,7 +113,7 @@ export function AdminListings() {
       await fetch(`/api/admin/listings/${selectedListing.id}`, { method: 'DELETE' });
       setDeleteDialogOpen(false);
       reload();
-    } catch {}
+    } catch (err) { console.error('[AdminListings delete]', err); }
     setActionLoading(false);
   };
 

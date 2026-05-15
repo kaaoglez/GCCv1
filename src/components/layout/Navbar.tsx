@@ -11,7 +11,6 @@ import {
   Globe,
   Plus,
   Menu,
-  Shield,
   Home,
   LogOut,
   User,
@@ -338,19 +337,6 @@ export function Navbar() {
               <Heart className="h-4 w-4" />
             </Button>
           )}
-
-          {/* Admin Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground hover:text-primary"
-            onClick={() => {
-             useModalStore.getState().setAdminView(true);
-            }}
-            title="Admin"
-          >
-            <Shield className="h-4 w-4" />
-          </Button>
 
           {/* Login / User Menu */}
           <UserMenu />

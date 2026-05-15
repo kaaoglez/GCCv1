@@ -58,8 +58,8 @@ export function AdminUsers() {
       try {
         const res = await fetch(`/api/admin/users?${params}`);
         const data = await res.json();
-        if (!cancelled) { setUsers(data.data || []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); }
-      } catch {}
+        if (!cancelled) { setUsers(Array.isArray(data.data) ? data.data : []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); }
+      } catch (err) { console.error('[AdminUsers load]', err); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -76,7 +76,7 @@ export function AdminUsers() {
       });
       setEditUser(null);
       reload();
-    } catch {}
+    } catch (err) { console.error('[AdminUsers role]', err); }
     setActionLoading(false);
   };
 
@@ -88,7 +88,7 @@ export function AdminUsers() {
         body: JSON.stringify({ isVerified: !user.isVerified }),
       });
       reload();
-    } catch {}
+    } catch (err) { console.error('[AdminUsers verify]', err); }
   };
 
   const toggleActive = async (user: UserRow) => {
@@ -99,7 +99,7 @@ export function AdminUsers() {
         body: JSON.stringify({ isActive: !user.isActive }),
       });
       reload();
-    } catch {}
+    } catch (err) { console.error('[AdminUsers active]', err); }
   };
 
   const roleColor = (role: string): React.CSSProperties => {

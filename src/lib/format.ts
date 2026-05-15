@@ -57,7 +57,8 @@ export function formatTime(date: string | Date, locale: Locale): string {
  * Format a number with locale-appropriate grouping.
  * Example: 1234 → "1.234" (es) / "1,234" (en)
  */
-export function formatNumber(num: number, locale: Locale): string {
+export function formatNumber(num: number | undefined | null, locale: Locale): string {
+  if (num == null || isNaN(num)) return '0';
   return num.toLocaleString(locale === 'es' ? 'es-ES' : 'en-US');
 }
 

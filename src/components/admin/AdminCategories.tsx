@@ -30,8 +30,8 @@ export function AdminCategories() {
     try {
       const res = await fetch('/api/admin/categories');
       const data = await res.json();
-      setCategories(data || []);
-    } catch {}
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) { console.error('[AdminCategories fetch]', err); }
     setLoading(false);
   };
 
@@ -42,8 +42,8 @@ export function AdminCategories() {
       try {
         const res = await fetch('/api/admin/categories');
         const data = await res.json();
-        if (!cancelled) setCategories(data || []);
-      } catch {}
+        if (!cancelled) setCategories(Array.isArray(data) ? data : []);
+      } catch (err) { console.error('[AdminCategories load]', err); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -78,7 +78,7 @@ export function AdminCategories() {
       });
       setEditCat(null);
       fetchCategories();
-    } catch {}
+    } catch (err) { console.error('[AdminCategories save]', err); }
     setActionLoading(false);
   };
 

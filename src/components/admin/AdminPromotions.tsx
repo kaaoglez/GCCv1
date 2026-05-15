@@ -44,7 +44,8 @@ function VipSliderTab({ locale, tp }: { locale: Locale; tp: (k: string) => strin
       fetch('/api/listings/featured').then((r) => r.json()),
       fetch('/api/listings?tier=VIP&limit=50').then((r) => r.json()),
     ]).then(([featured, vipList]) => {
-      const allListings = [...featured, ...vipList.data.filter((l: ListingDTO) => !featured.find((f: ListingDTO) => f.id === l.id))];
+      const vipData = Array.isArray(vipList.data) ? vipList.data : [];
+      const allListings = [...featured, ...vipData.filter((l: ListingDTO) => !featured.find((f: ListingDTO) => f.id === l.id))];
       setListings(allListings);
       setSliderIds(new Set(allListings.filter((l: ListingDTO) => l.tier === 'VIP' || l.tier === 'BUSINESS').map((l: ListingDTO) => l.id)));
     }).finally(() => setLoading(false));
@@ -126,8 +127,9 @@ function CategoryFeaturedTab({ locale, tp }: { locale: Locale; tp: (k: string) =
 
   useEffect(() => {
     fetch('/api/categories?locale=' + locale).then((r) => r.json()).then((data) => {
-      setCategories(data);
-      if (data.length > 0 && !selectedCat) setSelectedCat(data[0].id);
+      const cats = Array.isArray(data) ? data : [];
+      setCategories(cats);
+      if (cats.length > 0 && !selectedCat) setSelectedCat(cats[0].id);
     }).finally(() => setLoading(false));
   }, [locale]);
 
@@ -139,7 +141,7 @@ function CategoryFeaturedTab({ locale, tp }: { locale: Locale; tp: (k: string) =
         const res = await fetch(`/api/listings?categoryId=${selectedCat}&limit=50&sortBy=popular`);
         const data = await res.json();
         if (!cancelled) setListings(data.data || []);
-      } catch {}
+      } catch (err) { console.error('[AdminPromotions listings]', err); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -344,7 +346,7 @@ function PromoteListingTab({ locale, tp }: { locale: Locale; tp: (k: string) => 
       setSearch('');
       setResults([]);
       setTimeout(() => setSuccess(false), 3000);
-    } catch {}
+    } catch (err) { console.error('[AdminPromotions promote]', err); }
     setLoading(false);
   };
 

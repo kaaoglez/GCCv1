@@ -8,7 +8,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // Simple token: base64 of ADMIN_PASSWORD + timestamp (valid for 24h)
 function generateToken(): string {
-  const secret = ADMIN_PASSWORD || 'fallback-change-me';
+  const secret = ADMIN_PASSWORD || 'admin123';
   const expiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
   const payload = `${secret}:${expiry}`;
   return Buffer.from(payload).toString('base64');
@@ -20,7 +20,7 @@ function verifyToken(token: string): boolean {
     const decoded = Buffer.from(token, 'base64').toString();
     const [secret, expiryStr] = decoded.split(':');
     const expiry = parseInt(expiryStr, 10);
-    const expectedSecret = ADMIN_PASSWORD || 'fallback-change-me';
+    const expectedSecret = ADMIN_PASSWORD || 'admin123';
 
     if (secret !== expectedSecret) return false;
     if (Date.now() > expiry) return false;

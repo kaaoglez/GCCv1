@@ -40,7 +40,7 @@ export function AdminDashboard() {
     fetch('/api/admin/stats')
       .then((r) => r.json())
       .then((data) => { if (!cancelled) setStats(data); })
-      .catch(() => {})
+      .catch((err) => console.error('[AdminDashboard]', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
@@ -165,7 +165,7 @@ export function AdminDashboard() {
                         <td className="px-4 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-20" /></td>
                       </tr>
                     ))
-                  : stats?.recentListings.map((listing) => (
+                  : (stats?.recentListings || []).map((listing) => (
                       <tr key={listing.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setActivePage('listings')}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">

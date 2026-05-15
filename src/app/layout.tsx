@@ -3,7 +3,6 @@ import { Inter, Poppins, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 const inter = Inter({
@@ -75,7 +74,6 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
-            <Toaster />
             <SonnerToaster richColors position="bottom-right" />
           </ThemeProvider>
         </SessionProvider>

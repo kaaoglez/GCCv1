@@ -46,8 +46,8 @@ export function AdminPayments() {
       try {
         const res = await fetch(`/api/admin/payments?${params}`);
         const data = await res.json();
-        if (!cancelled) { setPayments(data.data || []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); }
-      } catch {}
+        if (!cancelled) { setPayments(Array.isArray(data.data) ? data.data : []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); }
+      } catch (err) { console.error('[AdminPayments load]', err); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -71,7 +71,7 @@ export function AdminPayments() {
       setCreateOpen(false);
       setCreateForm({ userId: '', listingId: '', amount: '', type: 'VIP_UPGRADE' });
       setPage((p) => p);
-    } catch {}
+    } catch (err) { console.error('[AdminPayments create]', err); }
     setActionLoading(false);
   };
 

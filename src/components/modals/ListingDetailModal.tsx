@@ -14,6 +14,7 @@ import {
   Clock,
   Maximize2,
   ImageIcon,
+  ImageOff,
   ChevronLeft,
   ChevronRight,
   MessageSquare,
@@ -46,6 +47,7 @@ export function ListingDetailModal() {
   const { data: session } = useSession();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imgError, setImgError] = useState(false);
 
   // Darker backdrop
   useEffect(() => {
@@ -67,17 +69,23 @@ export function ListingDetailModal() {
   if (!selectedListing) return null;
 
   const listing = selectedListing;
-  const images = listing.images || [];
+  const images = (listing.images || []).filter((img: string) => {
+    if (!img || typeof img !== 'string') return false;
+    if (img.includes('${')) return false;
+    return img.startsWith('/') || img.startsWith('http');
+  });
   const price = listing.metadata?.price as number | undefined;
   const isFree = !price || price === 0;
 
   const handleClose = () => {
     setCurrentImageIndex(0);
+    setImgError(false);
     closeListingDetail();
   };
 
   const handleViewFull = () => {
     setCurrentImageIndex(0);
+    setImgError(false);
     openListingFullView();
   };
 
@@ -100,7 +108,7 @@ export function ListingDetailModal() {
         <div className="relative">
           {/* Main image */}
           <div className="relative aspect-[4/3] w-full bg-muted overflow-hidden">
-            {images.length > 0 ? (
+            {images.length > 0 && !imgError ? (
               <>
                 <Image
                   src={images[currentImageIndex]}
@@ -108,6 +116,7 @@ export function ListingDetailModal() {
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="object-cover"
+                  onError={() => setImgError(true)}
                 />
                 {/* Image nav arrows */}
                 {images.length > 1 && (
@@ -134,7 +143,15 @@ export function ListingDetailModal() {
               </>
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <ImageIcon className="size-12 text-muted-foreground/20" />
+                <ImageOff className="size-12 text-muted-foreground/30" />
+              </div>
+            )}
+            {/* SOLD overlay */}
+            {listing.status === 'SOLD' && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                <span className="bg-red-600 text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-md shadow-lg uppercase tracking-wider">
+                  {locale === 'es' ? 'Vendido' : 'Sold'}
+                </span>
               </div>
             )}
             {/* Badges overlay */}
@@ -149,7 +166,7 @@ export function ListingDetailModal() {
               {images.map((img, i) => (
                 <button
                   key={i}
-                  onClick={() => setCurrentImageIndex(i)}
+                  onClick={() => { setCurrentImageIndex(i); setImgError(false); }}
                   className={cn(
                     'relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-all',
                     i === currentImageIndex
@@ -157,7 +174,7 @@ export function ListingDetailModal() {
                       : 'border-transparent opacity-50 hover:opacity-80'
                   )}
                 >
-                  <Image src={img} alt="" fill sizes="56px" className="object-cover" />
+                  <Image src={img} alt="" fill sizes="56px" className="object-cover" onError={() => setImgError(true)} />
                 </button>
               ))}
             </div>

@@ -43,6 +43,7 @@ import { formatPrice, getRelativeTime, formatDate } from '@/lib/format';
 import { PRICING_PLANS } from '@/lib/types';
 import type { DynamicField } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 // Complete translation map for ALL listing metadata keys
 const METADATA_LABELS: Record<string, Record<string, string>> = {
@@ -149,6 +150,7 @@ export function ListingFullView() {
   const imagesLength = images.length;
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -173,15 +175,22 @@ export function ListingFullView() {
     }
   }, [currentImageIndex]);
 
+  // Filter out broken images (template strings from old bug)
+  const safeImages = images.filter((img) => {
+    if (!img || typeof img !== 'string') return false;
+    if (img.includes('${')) return false;
+    return img.startsWith('/') || img.startsWith('http');
+  });
+
   // Image navigation callbacks (needed by keyboard effect)
   const prevImage = useCallback(() => {
-    setCurrentImageIndex((i) => (i > 0 ? i - 1 : imagesLength - 1));
+    setCurrentImageIndex((i) => (i > 0 ? i - 1 : safeImages.length - 1));
     setZoom(1); setPan({ x: 0, y: 0 });
-  }, [imagesLength]);
+  }, [safeImages.length]);
   const nextImage = useCallback(() => {
-    setCurrentImageIndex((i) => (i < imagesLength - 1 ? i + 1 : 0));
+    setCurrentImageIndex((i) => (i < safeImages.length - 1 ? i + 1 : 0));
     setZoom(1); setPan({ x: 0, y: 0 });
-  }, [imagesLength]);
+  }, [safeImages.length]);
   const enterZoom = useCallback(() => { setIsZoomed(true); setZoom(1); setPan({ x: 0, y: 0 }); }, []);
   const exitZoom = useCallback(() => { setIsZoomed(false); setZoom(1); setPan({ x: 0, y: 0 }); }, []);
 
@@ -203,6 +212,7 @@ export function ListingFullView() {
   if (!isListingFullView || !selectedListing) return null;
 
   const listing = selectedListing;
+  const listingId = listing?.id || '';
   const price = listing.metadata?.price as number | undefined;
   const isFree = !price || price === 0;
   const isVipOrBusiness = listing.tier === 'VIP' || listing.tier === 'BUSINESS';
@@ -256,7 +266,7 @@ export function ListingFullView() {
     >
       {/* ═══ INLINE ZOOM OVERLAY ═══ */}
       <AnimatePresence>
-        {isZoomed && images.length > 0 && (
+        {isZoomed && safeImages.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -301,11 +311,11 @@ export function ListingFullView() {
             {/* Counter */}
             <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-white/10 text-white text-sm px-3 py-1.5 rounded-full">
               <ImageIcon className="size-4" />
-              {currentImageIndex + 1} / {images.length}
+              {currentImageIndex + 1} / {safeImages.length}
             </div>
 
             {/* Nav arrows */}
-            {images.length > 1 && (
+            {safeImages.length > 1 && (
               <>
                 <button
                   onClick={(e) => { e.stopPropagation(); prevImage(); }}
@@ -328,7 +338,7 @@ export function ListingFullView() {
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={images[currentImageIndex]}
+                src={safeImages[currentImageIndex]}
                 alt={listing.title}
                 className={cn(
                   'max-w-full max-h-[85vh] object-contain transition-transform duration-200 select-none',
@@ -347,10 +357,10 @@ export function ListingFullView() {
             </div>
 
             {/* Thumbnail strip */}
-            {images.length > 1 && (
+            {safeImages.length > 1 && (
               <div className="absolute bottom-0 left-0 right-0 flex-shrink-0 px-4 py-3 bg-black/60 border-t border-white/10">
                 <div className="flex gap-2 overflow-x-auto justify-center max-w-3xl mx-auto pb-1">
-                  {images.map((img, i) => (
+                  {safeImages.map((img, i) => (
                     <button
                       key={i}
                       onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(i); setZoom(1); setPan({ x: 0, y: 0 }); }}
@@ -361,7 +371,13 @@ export function ListingFullView() {
                           : 'border-transparent opacity-50 hover:opacity-80'
                       )}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      {imageErrors[i] ? (
+                        <div className="w-full h-full flex items-center justify-center bg-white/10">
+                          <ImageOff className="size-5 text-white/30" />
+                        </div>
+                      ) : (
+                        <img src={img} alt="" className="w-full h-full object-cover" onError={() => setImageErrors((prev) => ({ ...prev, [i]: true }))} />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -397,16 +413,19 @@ export function ListingFullView() {
           <div className="lg:col-span-3 space-y-4">
             {/* Main image */}
             <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-muted shadow-sm">
-              {images.length > 0 ? (
+              {safeImages.length > 0 && !imageErrors[currentImageIndex] ? (
                 <>
-                  <img
-                    src={images[currentImageIndex]}
+                  <Image
+                    src={safeImages[currentImageIndex]}
                     alt={listing.title}
-                    className="h-full w-full object-cover cursor-zoom-in"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 40vw"
+                    className="object-cover cursor-zoom-in"
                     onClick={enterZoom}
+                    onError={() => setImageErrors((prev) => ({ ...prev, [currentImageIndex]: true }))}
                   />
                   {/* Nav arrows on main image */}
-                  {images.length > 1 && (
+                  {safeImages.length > 1 && (
                     <>
                       <button
                         onClick={prevImage}
@@ -425,7 +444,7 @@ export function ListingFullView() {
                   {/* Zoom hint + counter */}
                   <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/50 text-white text-xs px-2.5 py-1 rounded-full">
                     <ImageIcon className="size-3" />
-                    {currentImageIndex + 1}/{images.length}
+                    {currentImageIndex + 1}/{safeImages.length}
                   </div>
                   <button
                     onClick={enterZoom}
@@ -440,12 +459,21 @@ export function ListingFullView() {
                   <ImageOff className="size-16 text-muted-foreground/20" />
                 </div>
               )}
+
+              {/* SOLD overlay */}
+              {listing.status === 'SOLD' && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                  <span className="bg-red-600 text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-md shadow-lg uppercase tracking-wider">
+                    {locale === 'es' ? 'Vendido' : 'Sold'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Thumbnail strip */}
-            {images.length > 1 && (
+            {safeImages.length > 1 && (
               <div ref={thumbsRef} className="flex gap-2 overflow-x-auto pb-1">
-                {images.map((img, i) => (
+                {safeImages.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => { setCurrentImageIndex(i); }}
@@ -456,7 +484,13 @@ export function ListingFullView() {
                         : 'border-transparent opacity-60 hover:opacity-90'
                     )}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    {imageErrors[i] ? (
+                      <div className="w-full h-full flex items-center justify-center bg-muted">
+                        <ImageOff className="size-5 text-muted-foreground/30" />
+                      </div>
+                    ) : (
+                      <Image src={img} alt="" fill sizes="80px" className="object-cover" onError={() => setImageErrors((prev) => ({ ...prev, [i]: true }))} />
+                    )}
                   </button>
                 ))}
               </div>

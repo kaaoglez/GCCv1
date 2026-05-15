@@ -148,6 +148,7 @@ export function ListingFullView() {
   // Derived values needed by hooks (before early return)
   const images = selectedListing?.images || [];
   const imagesLength = images.length;
+  const currentView = useModalStore((s) => s.currentView);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
@@ -217,6 +218,9 @@ export function ListingFullView() {
   const isFree = !price || price === 0;
   const isVipOrBusiness = listing.tier === 'VIP' || listing.tier === 'BUSINESS';
   const canUpgrade = listing.tier === 'FREE' || listing.tier === 'HIGHLIGHTED';
+  const backLabel = currentView === 'directory'
+    ? (locale === 'es' ? 'Volver a Directorio' : 'Back to Directory')
+    : tp('listings', 'backToListings');
   const nextTier =
     listing.tier === 'FREE'
       ? PRICING_PLANS.find((p) => p.id === 'HIGHLIGHTED')
@@ -397,7 +401,7 @@ export function ListingFullView() {
             onClick={handleBack}
           >
             <Home className="size-4" />
-            {tp('listings', 'backToListings')}
+            {backLabel}
           </Button>
           <div className="flex items-center gap-2">
             <TierBadge tier={listing.tier} />

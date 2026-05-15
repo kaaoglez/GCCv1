@@ -345,7 +345,13 @@ export function Navbar() {
           <Button
             size="sm"
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold shadow-sm"
-            onClick={() => useModalStore.getState().openPostAd()}
+            onClick={() => {
+              if (!session?.user) {
+                openAuth();
+                return;
+              }
+              useModalStore.getState().openPostAd();
+            }}
           >
             <Plus className="h-4 w-4" />
             {tp('nav', 'postAd')}
@@ -521,7 +527,13 @@ export function Navbar() {
 
                 {/* Mobile Footer CTA */}
                 <div className="p-4 border-t border-border">
-                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold shadow-sm" onClick={() => useModalStore.getState().openPostAd()}>
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold shadow-sm" onClick={() => {
+                    if (!session?.user) {
+                      openAuth();
+                      return;
+                    }
+                    useModalStore.getState().openPostAd();
+                  }}>
                     <Plus className="h-4 w-4" />
                     {tp('nav', 'postAd')}
                   </Button>

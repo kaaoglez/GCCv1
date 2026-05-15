@@ -17,11 +17,14 @@ import {
 } from '@/components/ui/select';
 import { useI18n } from '@/hooks/use-i18n';
 import { useModalStore } from '@/lib/modal-store';
+import { useSession } from 'next-auth/react';
 import type { CategoryDTO } from '@/lib/types';
 
 export function HeroSection() {
   const { locale, tp } = useI18n();
   const openPostAd = useModalStore((s) => s.openPostAd);
+  const openAuth = useModalStore((s) => s.openAuth);
+  const { data: session } = useSession();
   const openSearch = useModalStore((s) => s.openSearch);
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -153,7 +156,13 @@ export function HeroSection() {
           >
             <Button
               size="lg"
-              onClick={openPostAd}
+              onClick={() => {
+                if (!session?.user) {
+                  openAuth();
+                  return;
+                }
+                openPostAd();
+              }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg gap-2 px-6"
             >
               <Plus className="size-5" />

@@ -217,7 +217,11 @@ export function PostAdModal() {
     cat.children && cat.children.length > 0
       ? cat.children
       : [cat]
-  );
+  ).sort((a, b) => {
+    const nameA = locale === 'es' ? a.nameEs : a.nameEn;
+    const nameB = locale === 'es' ? b.nameEs : b.nameEn;
+    return nameA.localeCompare(nameB);
+  });
 
   return (
     <Dialog open={isPostAdOpen} onOpenChange={handleClose}>

@@ -1,0 +1,45 @@
+===============================================
+PATCH - Perfil, Mis Anuncios, Favoritos
+Gran Canaria Conecta (GCC)
+===============================================
+
+EL PROBLEMA:
+Los archivos PerfilPage, MisAnunciosPage y FavoritosPage
+NO EXISTIAN en el repositorio. Tampoco estaban registrados
+en el sistema de navegacion (PageView, page.tsx, etc).
+
+ARCHIVOS A COPIAR (8 archivos):
+================================
+
+1. src/lib/modal-store.ts
+   -> Agrega 'perfil', 'mis-anuncios', 'favoritos' al tipo PageView
+
+2. src/lib/auth.ts
+   -> Agrega trustHost y useSecureCookies para el proxy
+
+3. src/app/page.tsx
+   -> Importa PerfilPage, MisAnunciosPage, FavoritosPage
+   -> Agrega los if() para renderizar cada una
+
+4. src/hooks/use-navigation.ts
+   -> Agrega VIEW_TITLES para las 3 paginas
+   -> Agrega las vistas a validViews
+
+5. src/components/layout/Navbar.tsx
+   -> Agrega onClick con navigateTo() en todos los botones
+   -> Agrega botones de Mensajes y Favoritos en desktop
+   -> Agrega links de navegacion en menu mobile
+
+6. src/components/pages/PerfilPage.tsx  (NUEVO ARCHIVO)
+7. src/components/pages/MisAnunciosPage.tsx  (NUEVO ARCHIVO)
+8. src/components/pages/FavoritosPage.tsx  (NUEVO ARCHIVO)
+
+PASOS:
+======
+1. Deten el servidor (Ctrl+C)
+2. Borra la cache: rm -rf .next
+3. Copia cada archivo a su ubicacion exacta
+4. Reinicia: bun run dev
+
+NOTA: Los archivos 6, 7 y 8 son NUEVOS - pueden que
+no existan en tu proyecto. Solo copialos tal cual.

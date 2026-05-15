@@ -25,6 +25,9 @@ import { NoticiasPage } from '@/components/pages/NoticiasPage';
 import { ReciclajePage } from '@/components/pages/ReciclajePage';
 import { DirectorioPage } from '@/components/pages/DirectorioPage';
 import { MessagesPage } from '@/components/modals/MessagesPage';
+import { PerfilPage } from '@/components/pages/PerfilPage';
+import { MisAnunciosPage } from '@/components/pages/MisAnunciosPage';
+import { FavoritosPage } from '@/components/pages/FavoritosPage';
 import { useModalStore, __registerHistoryPush } from '@/lib/modal-store';
 import { useAdminStore } from '@/lib/admin-store';
 import { useSearchParams } from 'next/navigation';
@@ -103,6 +106,9 @@ export default function Home() {
     if (currentView === 'recycling') return <ReciclajePage />;
     if (currentView === 'categorias') return <CategoriasPage />;
     if (currentView === 'messages') return <MessagesPage />;
+    if (currentView === 'perfil') return <PerfilPage />;
+    if (currentView === 'mis-anuncios') return <MisAnunciosPage />;
+    if (currentView === 'favoritos') return <FavoritosPage />;
 
     return null;
   };

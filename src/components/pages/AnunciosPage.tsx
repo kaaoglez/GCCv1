@@ -50,6 +50,7 @@ export function AnunciosPage() {
   const openListingDetail = useModalStore((s) => s.openListingDetail);
   const selectedCategoryId = useModalStore((s) => s.selectedCategoryId);
   const setSelectedCategoryId = useModalStore((s) => s.setSelectedCategoryId);
+  const listingsRefreshKey = useModalStore((s) => s.listingsRefreshKey);
 
   // ── Filter State ──────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -128,7 +129,7 @@ export function AnunciosPage() {
     } finally {
       setLoading(false);
     }
-  }, [queryParams]);
+  }, [queryParams, listingsRefreshKey]);
 
   useEffect(() => {
     fetchListings();

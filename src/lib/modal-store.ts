@@ -23,7 +23,7 @@ export function __skipHistoryPush(suppress: boolean) { _skipPush = suppress; }
 
 function tryPushHistory() { if (!_skipPush) _pushHistory?.(); }
 
-export type PageView = 'home' | 'anuncios' | 'categorias' | 'eventos' | 'news' | 'directory' | 'recycling' | 'messages';
+export type PageView = 'home' | 'anuncios' | 'categorias' | 'eventos' | 'news' | 'directory' | 'recycling' | 'messages' | 'perfil' | 'mis-anuncios' | 'favoritos';
 
 interface ModalState {
   // Current page view (client-side routing)
@@ -99,6 +99,10 @@ interface ModalState {
   isMessageOpen: boolean;
   openMessage: (config: { receiverId: string; receiverName: string; listingId?: string; listingTitle?: string; listingImage?: string }) => void;
   closeMessage: () => void;
+
+  // Listings refresh key — bumped when listing data changes (status, delete, etc.)
+  listingsRefreshKey: number;
+  bumpListingsRefreshKey: () => void;
 }
 
 export const useModalStore = create<ModalState>()((set) => ({
@@ -192,4 +196,8 @@ export const useModalStore = create<ModalState>()((set) => ({
   isMessageOpen: false,
   openMessage: (config) => set({ messageConfig: config, isMessageOpen: true }),
   closeMessage: () => set({ messageConfig: null, isMessageOpen: false }),
+
+  // ── Listings refresh key ──
+  listingsRefreshKey: 0,
+  bumpListingsRefreshKey: () => set((s) => ({ listingsRefreshKey: s.listingsRefreshKey + 1 })),
 }));

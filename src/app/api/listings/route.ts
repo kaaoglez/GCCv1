@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import type {
   ListingDTO,
   ListingCreateDTO,
@@ -19,12 +21,21 @@ export async function GET(request: NextRequest) {
     const municipality = searchParams.get('municipality') || undefined;
     const tier = searchParams.get('tier') as ListingTier | null;
     const search = searchParams.get('search') || undefined;
+    const authorId = searchParams.get('authorId') || undefined;
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
     const sortBy = (searchParams.get('sortBy') as 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular') || 'newest';
 
     // Build where clause
-    const where: Record<string, unknown> = { status: 'ACTIVE' };
+    const where: Record<string, unknown> = {};
+
+    // If filtering by authorId (My Ads), don't restrict to ACTIVE only
+    if (authorId) {
+      where.authorId = authorId;
+    } else {
+      // Show ACTIVE and SOLD listings so sold badge is visible
+      where.status = { in: ['ACTIVE', 'SOLD'] };
+    }
 
     if (categoryId) {
       // Include listings from this category and its children
@@ -128,6 +139,22 @@ export async function GET(request: NextRequest) {
 // POST /api/listings
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify user exists in database (prevents P2003 if DB was reset after login)
+    const existingUser = await db.user.findUnique({
+      where: { id: session.user.id },
+    });
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'Sesión inválida. Por favor, cierra sesión y vuelve a entrar.' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const validation = validateBody(createListingSchema, body);
     if (!validation.success) {
@@ -135,7 +162,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    const { title, description, categoryId, authorId, tier, metadata, images, municipality, location, lat, lng, showPhone, showEmail, contactMethod } = validation.data;
+    const { title, description, categoryId, tier, metadata, images, municipality, location, lat, lng, showPhone, showEmail, contactMethod } = validation.data;
 
     // Verify category exists
     const category = await db.category.findUnique({
@@ -192,7 +219,7 @@ export async function POST(request: NextRequest) {
         title: createDTO.title,
         description: createDTO.description,
         categoryId: createDTO.categoryId,
-        authorId: authorId || 'default', // In production, get from session
+        authorId: session.user.id,
         tier: createDTO.tier,
         metadata: JSON.stringify(createDTO.metadata),
         images: JSON.stringify(createDTO.images),

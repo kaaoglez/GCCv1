@@ -11,11 +11,13 @@ import { TierBadge } from './TierBadge';
 import { CategoryBadge } from './CategoryBadge';
 import { getIcon } from '@/lib/icons';
 import { useI18n } from '@/hooks/use-i18n';
+import { useFavoriteToggle } from '@/hooks/use-favorite-toggle';
 import { formatPrice, getRelativeTime, truncateText } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { useModalStore } from '@/lib/modal-store';
-import { MapPin, ShieldCheck, ImageOff } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { MapPin, ShieldCheck, ImageOff, Heart } from 'lucide-react';
 import type { ListingDTO } from '@/lib/types';
 
 interface ListingCardProps {
@@ -26,6 +28,9 @@ interface ListingCardProps {
 
 export function ListingCard({ listing, className, onClick }: ListingCardProps) {
   const openListingDetail = useModalStore((s) => s.openListingDetail);
+  const { data: session } = useSession();
+  const { isFavorite, toggle } = useFavoriteToggle(listing.id);
+  const { locale } = useI18n();
 
   const handleClick = () => {
     if (onClick) {
@@ -34,7 +39,6 @@ export function ListingCard({ listing, className, onClick }: ListingCardProps) {
       openListingDetail(listing);
     }
   };
-  const { locale } = useI18n();
   const image = listing.images?.[0];
   const price = listing.metadata?.price as number | undefined;
   const isFree = !price || price === 0;
@@ -96,6 +100,31 @@ export function ListingCard({ listing, className, onClick }: ListingCardProps) {
           <div className="absolute top-2 left-2">
             <TierBadge tier={listing.tier} />
           </div>
+
+          {/* SOLD overlay */}
+          {listing.status === 'SOLD' && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+              <span className="bg-red-600 text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-md shadow-lg uppercase tracking-wider">
+                {locale === 'es' ? 'Vendido' : 'Sold'}
+              </span>
+            </div>
+          )}
+
+          {/* Favorite heart button */}
+          {session?.user && (
+            <button
+              onClick={(e) => toggle(e)}
+              className={cn(
+                'absolute top-2 right-2 z-10 flex items-center justify-center size-8 rounded-full transition-all',
+                isFavorite
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-background/80 text-muted-foreground hover:text-red-500 hover:bg-background'
+              )}
+              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <Heart className={cn('size-4', isFavorite && 'fill-current')} />
+            </button>
+          )}
 
           {/* Price overlay */}
           <div className="absolute bottom-2 right-2">

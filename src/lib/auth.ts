@@ -3,6 +3,9 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { db } from '@/lib/db';
 
 export const authOptions: NextAuthOptions = {
+  // Required for reverse proxy (Caddy on port 4000 → Next.js on port 3000)
+  useSecureCookies: false,
+  trustHost: true,
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -33,10 +36,16 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // On first login: copy all user fields to token
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.image = user.image;
+      }
+      // On session update (e.g. after profile save): update image in token
+      if (trigger === 'update' && session?.image) {
+        token.image = session.image;
       }
       return token;
     },
@@ -44,6 +53,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role;
+        if (token.image) {
+          session.user.image = token.image as string;
+        }
       }
       return session;
     },

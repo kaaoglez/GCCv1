@@ -24,6 +24,9 @@ const VIEW_TITLES: Record<PageView, string> = {
   directory: 'Directorio · Gran Canaria Conecta',
   recycling: 'Reciclaje · Gran Canaria Conecta',
   messages: 'Mensajes · Gran Canaria Conecta',
+  perfil: 'Mi Perfil · Gran Canaria Conecta',
+  'mis-anuncios': 'Mis Anuncios · Gran Canaria Conecta',
+  favoritos: 'Favoritos · Gran Canaria Conecta',
 };
 
 // ── State stored in browser history ──
@@ -216,7 +219,7 @@ export function useNavigation() {
   // Handle direct hash access (#/categorias, etc.)
   useEffect(() => {
     const hash = window.location.hash.replace('#/', '');
-    const validViews: PageView[] = ['home', 'anuncios', 'categorias', 'eventos', 'news', 'directory', 'recycling', 'messages'];
+    const validViews: PageView[] = ['home', 'anuncios', 'categorias', 'eventos', 'news', 'directory', 'recycling', 'messages', 'perfil', 'mis-anuncios', 'favoritos'];
     if (hash && validViews.includes(hash as PageView)) {
       const store = useModalStore.getState();
       if (store.currentView !== hash) {

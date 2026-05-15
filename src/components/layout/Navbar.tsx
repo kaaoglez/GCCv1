@@ -16,6 +16,8 @@ import {
   LogOut,
   User,
   FileText,
+  Heart,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,11 +85,32 @@ function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
+/* ── Unread messages count ────────────────────────── */
+function useUnreadCount() {
+  const [count, setCount] = useState(0);
+  const session = useSession();
+  useEffect(() => {
+    if (!session.data?.user?.id) return;
+    let active = true;
+    async function fetchCount() {
+      try {
+        const res = await fetch('/api/messages/unread');
+        if (res.ok) { const data = await res.json(); if (active) setCount(data.count || 0); }
+      } catch { /* ignore */ }
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => { active = false; clearInterval(interval); };
+  }, [session.data?.user?.id]);
+  return count;
+}
+
 /* ── User Menu (shown when logged in) ────────────────────── */
 function UserMenu() {
   const { data: session } = useSession();
-  const { tp } = useI18n();
+  const { locale, tp } = useI18n();
   const openAuth = useModalStore((s) => s.openAuth);
+  const unreadCount = useUnreadCount();
 
   if (!session?.user) {
     return (
@@ -137,18 +160,31 @@ function UserMenu() {
           <p className="text-xs text-muted-foreground truncate">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer gap-2">
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigateTo('perfil')}>
           <User className="h-4 w-4" />
           {tp('auth', 'myProfile')}
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer gap-2">
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigateTo('mis-anuncios')}>
           <FileText className="h-4 w-4" />
           {tp('auth', 'myListings')}
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigateTo('favoritos')}>
+          <Heart className="h-4 w-4" />
+          {locale === 'es' ? 'Favoritos' : 'Favorites'}
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigateTo('messages')}>
+          <Mail className="h-4 w-4" />
+          {locale === 'es' ? 'Mensajes' : 'Messages'}
+          {unreadCount > 0 && (
+            <span className="ml-auto flex items-center justify-center size-5 rounded-full bg-red-500 text-white text-xs font-bold">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-          onClick={() => signOut({ callbackUrl: '/' })}
+          onClick={() => { signOut({ redirect: false }); useModalStore.getState().setCurrentView('home'); window.scrollTo({ top: 0 }); }}
         >
           <LogOut className="h-4 w-4" />
           {tp('auth', 'logout')}
@@ -176,6 +212,7 @@ export function Navbar() {
   const currentView = useModalStore((s) => s.currentView);
   const openAuth = useModalStore((s) => s.openAuth);
   const { data: session } = useSession();
+  const unreadCount = useUnreadCount();
 
   // Scroll detection via event subscription (proper effect usage)
   useEffect(() => {
@@ -270,6 +307,37 @@ export function Navbar() {
           <ThemeToggle className="text-muted-foreground hover:text-primary" />
 
           <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Messages button with badge */}
+          {session?.user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-muted-foreground hover:text-primary"
+              onClick={() => navigateTo('messages')}
+              title={locale === 'es' ? 'Mensajes' : 'Messages'}
+            >
+              <Mail className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center size-4 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          )}
+
+          {/* Favorites button */}
+          {session?.user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-primary"
+              onClick={() => navigateTo('favoritos')}
+              title={locale === 'es' ? 'Favoritos' : 'Favorites'}
+            >
+              <Heart className="h-4 w-4" />
+            </Button>
+          )}
 
           {/* Admin Button */}
           <Button
@@ -411,28 +479,40 @@ export function Navbar() {
                           </div>
                         </div>
                         <button
-                          onClick={() => {
-                            closeMobile();
-                          }}
+                          onClick={() => { closeMobile(); navigateTo('perfil'); }}
                           className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
                         >
                           <User className="size-4" />
                           {tp('auth', 'myProfile')}
                         </button>
                         <button
-                          onClick={() => {
-                            closeMobile();
-                          }}
+                          onClick={() => { closeMobile(); navigateTo('mis-anuncios'); }}
                           className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
                         >
                           <FileText className="size-4" />
                           {tp('auth', 'myListings')}
                         </button>
                         <button
-                          onClick={() => {
-                            closeMobile();
-                            signOut({ callbackUrl: '/' });
-                          }}
+                          onClick={() => { closeMobile(); navigateTo('favoritos'); }}
+                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                        >
+                          <Heart className="size-4" />
+                          {locale === 'es' ? 'Favoritos' : 'Favorites'}
+                        </button>
+                        <button
+                          onClick={() => { closeMobile(); navigateTo('messages'); }}
+                          className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                        >
+                          <Mail className="size-4" />
+                          {locale === 'es' ? 'Mensajes' : 'Messages'}
+                          {unreadCount > 0 && (
+                            <span className="ml-auto flex items-center justify-center size-5 rounded-full bg-red-500 text-white text-xs font-bold">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => { closeMobile(); signOut({ redirect: false }); useModalStore.getState().setCurrentView('home'); window.scrollTo({ top: 0 }); }}
                           className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                         >
                           <LogOut className="size-4" />

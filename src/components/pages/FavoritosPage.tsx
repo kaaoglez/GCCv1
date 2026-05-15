@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useI18n } from '@/hooks/use-i18n';
-import { __setFavoriteIds } from '@/hooks/use-favorite-toggle';
+import { __setFavoriteIds, __removeFavoriteId, __resetFavoriteLoad } from '@/hooks/use-favorite-toggle';
 import { navigateBack, navigateTo } from '@/hooks/use-navigation';
 import { useModalStore } from '@/lib/modal-store';
 import { formatPrice, getRelativeTime } from '@/lib/format';
@@ -47,14 +47,24 @@ export function FavoritosPage() {
       return;
     }
 
+    // Force fresh load from server
+    __resetFavoriteLoad();
     setLoading(true);
     try {
       const res = await fetch('/api/favorites');
+      if (!res.ok) {
+        console.error('[FavoritosPage] GET /api/favorites error:', res.status);
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
+      console.log('[FavoritosPage] Loaded', list.length, 'favorites from server');
       setFavorites(list);
       __setFavoriteIds(list.map((l: ListingDTO) => l.id));
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.error('[FavoritosPage] fetch error:', err);
+    } finally {
       setLoading(false);
     }
   }, [session?.user?.id]);
@@ -98,14 +108,25 @@ export function FavoritosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingId: listing.id }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Error' }));
+        console.error('[toggleFavorite] API error:', res.status, err.error);
+        toast.error(locale === 'es' ? 'Error al guardar favorito' : 'Failed to save favorite');
+        setTogglingId(null);
+        return;
+      }
       const data = await res.json();
       if (data.isFavorite === false) {
         setFavorites((prev) => prev.filter((l) => l.id !== listing.id));
+        __removeFavoriteId(listing.id);
       }
       toast.success(data.isFavorite
-        ? (locale === 'es' ? 'Guardado en favoritos' : 'Added to favorites')
+        ? (locale === 'es' ? '❤️ Guardado en favoritos' : '❤️ Added to favorites')
         : (locale === 'es' ? 'Eliminado de favoritos' : 'Removed from favorites'));
-    } catch { toast.error('Error'); }
+    } catch (err) {
+      console.error('[toggleFavorite] Network error:', err);
+      toast.error('Error de conexión');
+    }
     setTogglingId(null);
   };
 

@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -75,6 +76,7 @@ export default function RootLayout({
           >
             {children}
             <Toaster />
+            <SonnerToaster richColors position="bottom-right" />
           </ThemeProvider>
         </SessionProvider>
       </body>

@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════════
-// GRAN CANARIA CONECTA - Database Schema
-// Professional hyperlocal community portal with eco focus
-// ═══════════════════════════════════════════════════════════════
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,376 +7,240 @@ datasource db {
   url      = "file:../db/custom.db"
 }
 
-// ─────────────────────────────────────────────────────────────
-// ENUM-LIKE CONSTANTS (via String + comments for reference)
-// These are enforced at application level via TypeScript unions
-// ─────────────────────────────────────────────────────────────
+model Article {
+  id          String    @id
+  slug        String    @unique
+  title       String
+  content     String
+  excerpt     String?
+  authorId    String
+  category    String    @default("GENERAL")
+  image       String?
+  tags        String?   @default("[]")
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  viewCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  author      User      @relation(fields: [authorId], references: [id])
 
-// ListingTier: FREE | HIGHLIGHTED | VIP | BUSINESS
-// ListingStatus: DRAFT | ACTIVE | EXPIRED | SOLD | ARCHIVED
-// EventCategory: WORKSHOP | CLEANUP | MARKET | CONCERT | SPORT | COMMUNITY | CULTURE | OTHER
-// EventStatus: UPCOMING | ONGOING | PAST | CANCELLED
-// ArticleCategory: ENVIRONMENT | COMMUNITY | BUSINESS | SUSTAINABILITY | TOURISM | GENERAL
-// PaymentType: LISTING_POST | VIP_UPGRADE | HIGHLIGHT_UPGRADE | BUMP | BUSINESS_PLAN
-// PaymentStatus: PENDING | COMPLETED | REFUNDED | FAILED
-// UserRole: MEMBER | BUSINESS | ADMIN
-// Language: ES | EN
-
-// ─────────────────────────────────────────────────────────────
-// USER - Authentication & Profiles
-// ─────────────────────────────────────────────────────────────
-
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  password     String?
-  name         String
-  avatar       String?
-  phone        String?
-  bio          String?
-  municipality String?
-  role         String   @default("MEMBER") // MEMBER | BUSINESS | ADMIN
-  language     String   @default("ES") // ES | EN
-  isVerified   Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Business profile fields (used when role = BUSINESS)
-  businessName        String?
-  businessDescription String?
-  businessAddress     String?
-  businessPhone       String?
-  businessWebsite     String?
-  businessHours       String? // JSON: {"mon":"9-18","tue":"9-18",...}
-  businessLogo        String?
-  businessCategory    String? // Category slug for business type
-  planExpiresAt       DateTime?
-
-  // Relations
-  listings Listing[]
-  events   Event[]
-  articles Article[]
-  payments Payment[]
+  @@index([isPublished, publishedAt])
 }
-
-// ─────────────────────────────────────────────────────────────
-// CATEGORY - The brain that controls listing behavior
-// Categories are hierarchical and drive UI, pricing, fields
-// ─────────────────────────────────────────────────────────────
 
 model Category {
-  id        String  @id @default(cuid())
-  slug      String  @unique
-  nameEs    String
-  nameEn    String
-  descEs    String?
-  descEn    String?
-  icon      String  @default("circle") // Lucide icon name
-  color     String  @default("#52B788") // Hex color
-  parentId  String?
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  id             String     @id
+  slug           String     @unique
+  nameEs         String
+  nameEn         String
+  descEs         String?
+  descEn         String?
+  icon           String     @default("circle")
+  color          String     @default("#52B788")
+  parentId       String?
+  sortOrder      Int        @default(0)
+  isActive       Boolean    @default(true)
+  isPaid         Boolean    @default(false)
+  price          Float?
+  highlightPrice Float?     @default(5)
+  vipPrice       Float?     @default(15)
+  allowedFields  String?    @default("[]")
+  showPrice      Boolean    @default(true)
+  showLocation   Boolean    @default(true)
+  showImages     Boolean    @default(true)
+  maxImages      Int        @default(5)
+  expiryDays     Int        @default(30)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime
+  parent         Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children       Category[] @relation("CategoryToCategory")
+  listings       Listing[]
 
-  // Monetization
-  isPaid         Boolean @default(false)
-  price          Float? // Base price for this category
-  highlightPrice Float?  @default(5) // Cost to highlight
-  vipPrice       Float?  @default(15) // Cost for VIP
-
-  // Flexible fields config
-  // JSON array of field definitions:
-  // [{"key":"condition","type":"select","options":["new","used","refurbished"],"required":true}]
-  allowedFields String? @default("[]")
-
-  // Display config
-  showPrice    Boolean @default(true) // Show price field in form
-  showLocation Boolean @default(true) // Show location picker
-  showImages   Boolean @default(true) // Show image upload
-  maxImages    Int     @default(5) // Max images allowed
-  expiryDays   Int     @default(30) // Days until listing expires
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryHierarchy")
-  listings Listing[]
-
-  // Indexes for query performance
-  @@index([parentId, sortOrder])
   @@index([isActive, sortOrder])
+  @@index([parentId, sortOrder])
 }
 
-// ─────────────────────────────────────────────────────────────
-// LISTING - The universal base content type
-// One model handles: classifieds, business ads, services,
-// items for sale, housing, jobs - EVERYTHING
-// The Category determines how it renders and behaves
-// ─────────────────────────────────────────────────────────────
-
-model Listing {
-  id   String @id @default(cuid())
-  slug String @unique
-
-  // Core content
-  title       String
-  description String
-
-  // Categorization
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  // Author
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id])
-
-  // Promotion tier
-  tier String @default("FREE") // FREE | HIGHLIGHTED | VIP | BUSINESS
-
-  // Flexible metadata (JSON) - driven by category.allowedFields
-  // Examples: {"price":150,"condition":"used","brand":"IKEA","dimensions":"200x100"}
-  metadata String @default("{}")
-
-  // Images (JSON array of URLs)
-  images String @default("[]")
-
-  // Location
-  municipality String?
-  location     String? // Free text: address, zone, neighborhood
-  lat          Float?
-  lng          Float?
-
-  // Lifecycle
-  status      String    @default("DRAFT") // DRAFT | ACTIVE | EXPIRED | SOLD | ARCHIVED
-  expiresAt   DateTime?
-  bumpedAt    DateTime?
-  publishedAt DateTime?
-
-  // Stats
-  viewCount    Int @default(0)
-  contactCount Int @default(0)
-
-  // Contact preferences
-  showPhone     Boolean @default(false)
-  showEmail     Boolean @default(true)
-  contactMethod String  @default("message") // message | phone | email | whatsapp
-
+model CommunityStat {
+  id        String   @id
+  statKey   String   @unique
+  statValue Float
+  statLabel String?
+  updatedAt DateTime
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  payment Payment?
-
-  // Indexes for query performance
-  @@index([status, createdAt])
-  @@index([categoryId, status])
-  @@index([authorId])
-  @@index([municipality, status])
-  @@index([tier])
 }
-
-// ─────────────────────────────────────────────────────────────
-// EVENT - Community events, workshops, cleanups, markets
-// Similar structure to Listing but time-based
-// ─────────────────────────────────────────────────────────────
 
 model Event {
-  id   String @id @default(cuid())
-  slug String @unique
-
-  // Core content
-  title       String
-  description String
-
-  // Author / Organizer
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id])
-
-  // Time
-  startDate DateTime
-  endDate   DateTime?
-  allDay    Boolean   @default(false)
-  recurring String? // JSON: {"type":"weekly","days":["sa"],"until":"2025-12-31"}
-
-  // Location
+  id           String    @id
+  slug         String    @unique
+  title        String
+  description  String
+  authorId     String
+  startDate    DateTime
+  endDate      DateTime?
+  allDay       Boolean   @default(false)
+  recurring    String?
   location     String
   municipality String
   lat          Float?
   lng          Float?
-
-  // Image
-  image String?
-
-  // Categorization
-  category String @default("OTHER") // WORKSHOP|CLEANUP|MARKET|CONCERT|SPORT|COMMUNITY|CULTURE|OTHER
-
-  // Ticketing
-  isFree    Boolean @default(true)
-  price     Float?
-  ticketUrl String?
-  capacity  Int?
-
-  // Organizer info
+  image        String?
+  category     String    @default("OTHER")
+  isFree       Boolean   @default(true)
+  price        Float?
+  ticketUrl    String?
+  capacity     Int?
   organizer    String?
   contactEmail String?
   contactPhone String?
   website      String?
+  isEco        Boolean   @default(false)
+  ecoTags      String?
+  status       String    @default("UPCOMING")
+  viewCount    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  author       User      @relation(fields: [authorId], references: [id])
 
-  // Eco flags
-  isEco   Boolean @default(false)
-  ecoTags String? // JSON: ["zero-waste","recycling","sustainable","organic"]
-
-  // Status
-  status String @default("UPCOMING") // UPCOMING|ONGOING|PAST|CANCELLED
-
-  // Stats
-  viewCount Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Indexes for query performance
-  @@index([status, startDate])
   @@index([municipality])
+  @@index([status, startDate])
 }
 
-// ─────────────────────────────────────────────────────────────
-// ARTICLE - Local news and blog posts
-// ─────────────────────────────────────────────────────────────
-
-model Article {
-  id   String @id @default(cuid())
-  slug String @unique
-
-  // Core content
-  title   String
-  content String // Markdown
-  excerpt String? // Short summary for cards
-
-  // Author
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id])
-
-  // Categorization
-  category String @default("GENERAL") // ENVIRONMENT|COMMUNITY|BUSINESS|SUSTAINABILITY|TOURISM|GENERAL
-
-  // Media
-  image String?
-
-  // Tags (JSON array)
-  tags String? @default("[]") // ["reciclaje","playas","medioambiente"]
-
-  // Status
-  isPublished Boolean   @default(false)
-  publishedAt DateTime?
-
-  // Stats
-  viewCount Int @default(0)
-
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
-  // Indexes for query performance
-  @@index([isPublished, publishedAt])
+  @@unique([userId, listingId])
+  @@index([listingId])
+  @@index([userId])
 }
 
-// ─────────────────────────────────────────────────────────────
-// RECYCLING POINT - Eco directory
-// ─────────────────────────────────────────────────────────────
+model Listing {
+  id            String     @id
+  slug          String     @unique
+  title         String
+  description   String
+  categoryId    String
+  authorId      String
+  tier          String     @default("FREE")
+  metadata      String     @default("{}")
+  images        String     @default("[]")
+  municipality  String?
+  location      String?
+  lat           Float?
+  lng           Float?
+  status        String     @default("DRAFT")
+  expiresAt     DateTime?
+  bumpedAt      DateTime?
+  publishedAt   DateTime?
+  viewCount     Int        @default(0)
+  contactCount  Int        @default(0)
+  showPhone     Boolean    @default(false)
+  showEmail     Boolean    @default(true)
+  contactMethod String     @default("message")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime
+  favorites     Favorite[]
+  author        User       @relation(fields: [authorId], references: [id])
+  category      Category   @relation(fields: [categoryId], references: [id])
+  messages      Message[]
+  payment       Payment?
+
+  @@index([tier])
+  @@index([municipality, status])
+  @@index([authorId])
+  @@index([categoryId, status])
+  @@index([status, createdAt])
+}
+
+model Message {
+  id                            String   @id
+  listingId                     String?
+  senderId                      String
+  receiverId                    String
+  subject                       String
+  content                       String
+  isRead                        Boolean  @default(false)
+  createdAt                     DateTime @default(now())
+  listing                       Listing? @relation(fields: [listingId], references: [id])
+  receiver                      User     @relation("Message_receiverIdToUser", fields: [receiverId], references: [id])
+  sender                        User     @relation("Message_senderIdToUser", fields: [senderId], references: [id])
+
+  @@index([listingId])
+  @@index([receiverId])
+  @@index([senderId])
+}
+
+model Payment {
+  id           String    @id
+  userId       String
+  listingId    String?   @unique
+  type         String
+  amount       Float
+  status       String    @default("PENDING")
+  provider     String?
+  providerId   String?
+  providerData String?
+  validFrom    DateTime  @default(now())
+  validUntil   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  listing      Listing?  @relation(fields: [listingId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
 
 model RecyclingPoint {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-
-  // Location
+  id           String   @id
+  name         String
+  description  String?
   address      String
   municipality String
   lat          Float?
   lng          Float?
-
-  // What can be recycled here (JSON array)
-  // ["plastico","vidrio","papel","organico","electronica","textil","baterias","aceite"]
-  types String @default("[]")
-
-  // Schedule
-  schedule String? // JSON: {"mon":"8-20","tue":"8-20",...,"sat":"8-14","sun":""}
-
-  // Contact
-  phone   String?
-  website String?
-  email   String?
-
-  // Type of facility
-  facilityType String @default("ecoparque") // ecoparque|container|clean_point|specialized
-
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  types        String   @default("[]")
+  schedule     String?
+  phone        String?
+  website      String?
+  email        String?
+  facilityType String   @default("ecoparque")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
 }
 
-// ─────────────────────────────────────────────────────────────
-// PAYMENT - Revenue tracking
-// ─────────────────────────────────────────────────────────────
-
-model Payment {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  listingId String?  @unique
-  listing   Listing? @relation(fields: [listingId], references: [id])
-
-  // What was paid for
-  type   String // LISTING_POST|VIP_UPGRADE|HIGHLIGHT_UPGRADE|BUMP|BUSINESS_PLAN
-  amount Float
-
-  // Status
-  status String @default("PENDING") // PENDING|COMPLETED|REFUNDED|FAILED
-
-  // Provider
-  provider     String? // stripe|paypal|redsys|manual
-  providerId   String? // External payment ID
-  providerData String? // JSON with full provider response
-
-  // Validity
-  validFrom  DateTime  @default(now())
-  validUntil DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Indexes for query performance
-  @@index([userId])
-}
-
-// ─────────────────────────────────────────────────────────────
-// CONTACT MESSAGE - Messages between users
-// ─────────────────────────────────────────────────────────────
-
-model Message {
-  id         String  @id @default(cuid())
-  listingId  String?
-  senderId   String
-  receiverId String
-
-  subject String
-  content String
-
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
-
-// ─────────────────────────────────────────────────────────────
-// COMMUNITY STAT - Aggregated metrics (updated periodically)
-// ─────────────────────────────────────────────────────────────
-
-model CommunityStat {
-  id        String   @id @default(cuid())
-  statKey   String   @unique // total_listings|active_users|kg_recycled|co2_saved|volunteers|events_this_month
-  statValue Float
-  statLabel String? // Display label
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+model User {
+  id                               String     @id
+  email                            String     @unique
+  password                         String?
+  name                             String
+  avatar                           String?
+  phone                            String?
+  bio                              String?
+  municipality                     String?
+  role                             String     @default("MEMBER")
+  language                         String     @default("ES")
+  isVerified                       Boolean    @default(false)
+  isActive                         Boolean    @default(true)
+  createdAt                        DateTime   @default(now())
+  updatedAt                        DateTime
+  businessName                     String?
+  businessDescription              String?
+  businessAddress                  String?
+  businessPhone                    String?
+  businessWebsite                  String?
+  businessHours                    String?
+  businessLogo                     String?
+  businessCategory                 String?
+  planExpiresAt                    DateTime?
+  articles                         Article[]
+  events                           Event[]
+  favorites                        Favorite[]
+  listings                         Listing[]
+  receivedMessages                 Message[]  @relation("Message_receiverIdToUser")
+  sentMessages                     Message[]  @relation("Message_senderIdToUser")
+  payments                         Payment[]
 }

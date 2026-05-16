@@ -9,6 +9,7 @@ import { AdminPromotions } from './AdminPromotions';
 import { AdminUsers } from './AdminUsers';
 import { AdminCategories } from './AdminCategories';
 import { AdminPayments } from './AdminPayments';
+import { AdminFlyers } from './AdminFlyers';
 
 const pages: Record<string, React.FC> = {
   dashboard: AdminDashboard,
@@ -17,6 +18,7 @@ const pages: Record<string, React.FC> = {
   users: AdminUsers,
   categories: AdminCategories,
   payments: AdminPayments,
+  flyers: AdminFlyers,
 };
 
 export function AdminPanel() {

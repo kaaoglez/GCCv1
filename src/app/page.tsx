@@ -26,9 +26,12 @@ import { CategoriasPage } from '@/components/pages/CategoriasPage';
 import { NoticiasPage } from '@/components/pages/NoticiasPage';
 import { ReciclajePage } from '@/components/pages/ReciclajePage';
 import { DirectorioPage } from '@/components/pages/DirectorioPage';
+import { FlyersPage } from '@/components/pages/FlyersPage';
 import { MessagesPage } from '@/components/modals/MessagesPage';
 import { PerfilPage } from '@/components/pages/PerfilPage';
 import { MisAnunciosPage } from '@/components/pages/MisAnunciosPage';
+import { MisFlyersPage } from '@/components/pages/MisFlyersPage';
+import { CrearFolletoPage } from '@/components/pages/CrearFolletoPage';
 import { FavoritosPage } from '@/components/pages/FavoritosPage';
 import { useModalStore, __registerHistoryPush } from '@/lib/modal-store';
 import { useAdminStore } from '@/lib/admin-store';
@@ -119,10 +122,13 @@ export default function Home() {
     if (currentView === 'news') return <NoticiasPage />;
     if (currentView === 'directory') return <DirectorioPage />;
     if (currentView === 'recycling') return <ReciclajePage />;
+    if (currentView === 'flyers') return <FlyersPage />;
     if (currentView === 'categorias') return <CategoriasPage />;
     if (currentView === 'messages') return <MessagesPage />;
     if (currentView === 'perfil') return <PerfilPage />;
     if (currentView === 'mis-anuncios') return <MisAnunciosPage />;
+    if (currentView === 'mis-flyers') return <MisFlyersPage />;
+    if (currentView === 'crear-folleto') return <CrearFolletoPage />;
     if (currentView === 'favoritos') return <FavoritosPage />;
 
     return null;

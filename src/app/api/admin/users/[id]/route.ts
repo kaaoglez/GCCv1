@@ -176,12 +176,8 @@ export async function PUT(
       updateData.businessHours = JSON.stringify(validatedData.businessHours);
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        { error: 'No fields to update' },
-        { status: 400 }
-      );
-    }
+    // Always include updatedAt on any update
+    updateData.updatedAt = new Date();
 
     const updated = await db.user.update({
       where: { id },

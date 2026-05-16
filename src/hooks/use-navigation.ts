@@ -21,6 +21,9 @@ const VIEW_TITLES: Record<PageView, string> = {
   categorias: 'Categorías · Gran Canaria Conecta',
   eventos: 'Eventos · Gran Canaria Conecta',
   news: 'Noticias · Gran Canaria Conecta',
+  flyers: 'Ofertas · Gran Canaria Conecta',
+  'mis-flyers': 'Mis Folletos · Gran Canaria Conecta',
+  'crear-folleto': 'Crear Folleto · Gran Canaria Conecta',
   directory: 'Directorio · Gran Canaria Conecta',
   recycling: 'Reciclaje · Gran Canaria Conecta',
   messages: 'Mensajes · Gran Canaria Conecta',
@@ -41,6 +44,7 @@ export interface HistoryState {
   isSearchOpen: boolean;
   searchQuery: string;
   searchCategoryId: string | null;
+  editingFlyerId: string | null;
 }
 
 function readStoreState(): HistoryState {
@@ -56,6 +60,7 @@ function readStoreState(): HistoryState {
     isSearchOpen: s.isSearchOpen,
     searchQuery: s.searchQuery,
     searchCategoryId: s.searchCategoryId,
+    editingFlyerId: s.editingFlyerId,
   };
 }
 
@@ -70,6 +75,8 @@ export function pushNavigationState() {
     document.title = 'Publicar Anuncio · Gran Canaria Conecta';
   } else if (state.isPromoteBusinessPage) {
     document.title = 'Promociona tu Negocio · Gran Canaria Conecta';
+  } else if (state.view === 'crear-folleto' && state.editingFlyerId) {
+    document.title = 'Editar Folleto · Gran Canaria Conecta';
   } else {
     updateTitle(state.view);
   }
@@ -153,6 +160,9 @@ function restoreState(state: HistoryState) {
     // Category filter
     if (store.selectedCategoryId !== state.selectedCategoryId) store.setSelectedCategoryId(state.selectedCategoryId);
 
+    // Editing flyer ID
+    if (store.editingFlyerId !== state.editingFlyerId) store.setEditingFlyerId(state.editingFlyerId);
+
     // Post Ad Page
     if (state.isPostAdPage !== store.isPostAdPage) {
       if (state.isPostAdPage) store.openPostAdPage();
@@ -199,6 +209,8 @@ function restoreState(state: HistoryState) {
       document.title = 'Publicar Anuncio · Gran Canaria Conecta';
     } else if (state.isPromoteBusinessPage) {
       document.title = 'Promociona tu Negocio · Gran Canaria Conecta';
+    } else if (state.view === 'crear-folleto' && state.editingFlyerId) {
+      document.title = 'Editar Folleto · Gran Canaria Conecta';
     } else {
       updateTitle(state.view);
     }
@@ -254,7 +266,7 @@ export function useNavigation() {
   // Handle direct hash access (#/categorias, etc.)
   useEffect(() => {
     const hash = window.location.hash.replace('#/', '');
-    const validViews: PageView[] = ['home', 'anuncios', 'categorias', 'eventos', 'news', 'directory', 'recycling', 'messages', 'perfil', 'mis-anuncios', 'favoritos'];
+    const validViews: PageView[] = ['home', 'anuncios', 'categorias', 'eventos', 'news', 'flyers', 'directory', 'recycling', 'messages', 'perfil', 'mis-anuncios', 'mis-flyers', 'crear-folleto', 'favoritos'];
     if (hash && validViews.includes(hash as PageView)) {
       const store = useModalStore.getState();
       if (store.currentView !== hash) {

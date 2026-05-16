@@ -43,6 +43,9 @@ import {
   Trash2,
   Droplets,
   Factory,
+  ShoppingCart,
+  Monitor,
+  Dumbbell,
 } from 'lucide-react';
 
 // Registry mapping icon name strings (kebab-case) to Lucide components
@@ -86,6 +89,9 @@ const iconRegistry: Record<string, React.ComponentType<{ size?: number | string;
   'trash-2': Trash2,
   droplets: Droplets,
   factory: Factory,
+  'shopping-cart': ShoppingCart,
+  monitor: Monitor,
+  dumbbell: Dumbbell,
 };
 
 // Fallback icon for unknown names

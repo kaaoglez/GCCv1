@@ -24,6 +24,7 @@ import {
   KeyRound,
   Crown,
   Shield,
+  Megaphone,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -122,7 +123,7 @@ export function PerfilPage() {
   const { openAuth } = useModalStore();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [stats, setStats] = useState({ listings: 0, favorites: 0, messages: 0 });
+  const [stats, setStats] = useState({ listings: 0, favorites: 0, messages: 0, flyers: 0 });
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -141,11 +142,12 @@ export function PerfilPage() {
     setLoading(true);
     try {
       const userId = session.user.id;
-      const [profileRes, listingsRes, favsRes, msgsRes] = await Promise.all([
+      const [profileRes, listingsRes, favsRes, msgsRes, flyersRes] = await Promise.all([
         fetch('/api/profile'),
         fetch(`/api/listings?authorId=${userId}&limit=1`),
         fetch('/api/favorites'),
         fetch('/api/messages/unread'),
+        fetch('/api/flyers?mine=true&limit=1'),
       ]);
 
       if (profileRes.ok) {
@@ -156,11 +158,13 @@ export function PerfilPage() {
       const listingsData = await listingsRes.json();
       const favsData = await favsRes.json();
       const msgsData = await msgsRes.json();
+      const flyersData = await flyersRes.json();
 
       setStats({
         listings: listingsData.total || 0,
         favorites: Array.isArray(favsData) ? favsData.length : 0,
         messages: typeof msgsData === 'number' ? msgsData : (msgsData?.count || 0),
+        flyers: flyersData.total || 0,
       });
     } catch {
       if (session?.user) {
@@ -470,44 +474,81 @@ export function PerfilPage() {
             </Card>
           )}
 
+          {/* ── Mis Folletos — Botón solo para negocios ── */}
+          {isBusiness && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="mt-6"
+            >
+              <button
+                onClick={() => navigateTo('mis-flyers')}
+                className="w-full flex items-center gap-4 p-4 sm:p-5 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 hover:border-emerald-400 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-950/50 dark:hover:to-teal-950/50 transition-all text-left group"
+              >
+                <div className="flex items-center justify-center size-12 rounded-xl bg-emerald-500 text-white shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <Megaphone className="size-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {t('Mis Folletos', 'My Flyers', locale)}
+                  </p>
+                  <p className="text-sm text-emerald-600/70 dark:text-emerald-400/70">
+                    {t('Gestiona tus folletos promocionales', 'Manage your promotional flyers', locale)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {stats.flyers > 0 && (
+                    <Badge variant="secondary" className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold">
+                      {stats.flyers}
+                    </Badge>
+                  )}
+                  <svg className="size-5 text-emerald-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            </motion.div>
+          )}
+
           {/* ── Stats ────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-3 gap-4 mt-4">
             <button
               onClick={() => navigateTo('mis-anuncios')}
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-primary/5 transition-colors text-center"
             >
-              <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 text-primary shrink-0">
-                <FileText className="size-6" />
+              <div className="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary shrink-0">
+                <FileText className="size-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.listings}</p>
-                <p className="text-sm text-muted-foreground">{t('Mis anuncios', 'My listings', locale)}</p>
+                <p className="text-xl font-bold text-foreground">{stats.listings}</p>
+                <p className="text-xs text-muted-foreground">{t('Anuncios', 'Listings', locale)}</p>
               </div>
             </button>
 
             <button
               onClick={() => navigateTo('favoritos')}
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-red-300 dark:hover:bg-red-950/20 transition-colors text-left"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:border-red-300 dark:hover:bg-red-950/20 transition-colors text-center"
             >
-              <div className="flex items-center justify-center size-12 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-500 shrink-0">
-                <Heart className="size-6" />
+              <div className="flex items-center justify-center size-10 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-500 shrink-0">
+                <Heart className="size-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.favorites}</p>
-                <p className="text-sm text-muted-foreground">{t('Favoritos', 'Favorites', locale)}</p>
+                <p className="text-xl font-bold text-foreground">{stats.favorites}</p>
+                <p className="text-xs text-muted-foreground">{t('Favoritos', 'Favorites', locale)}</p>
               </div>
             </button>
 
             <button
               onClick={() => navigateTo('messages')}
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-primary/5 transition-colors text-left"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-primary/5 transition-colors text-center"
             >
-              <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 text-primary shrink-0">
-                <MessageSquare className="size-6" />
+              <div className="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary shrink-0">
+                <MessageSquare className="size-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stats.messages}</p>
-                <p className="text-sm text-muted-foreground">{t('Mensajes', 'Messages', locale)}</p>
+                <p className="text-xl font-bold text-foreground">{stats.messages}</p>
+                <p className="text-xs text-muted-foreground">{t('Mensajes', 'Messages', locale)}</p>
               </div>
             </button>
           </div>

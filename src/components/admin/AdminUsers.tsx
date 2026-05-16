@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { formatNumber, getRelativeTime } from '@/lib/format';
+import { toast } from 'sonner';
 import { Search, Shield, ShieldOff, UserCog, ChevronLeft, ChevronRight, Crown, ShieldCheck, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import type { UserRole } from '@/lib/types';
 import { ROLE_LABELS } from '@/lib/types';
@@ -55,8 +56,9 @@ export function AdminUsers() {
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [editRole, setEditRole] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const reload = () => setPage((p) => p);
+  const reload = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,20 +75,36 @@ export function AdminUsers() {
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [search, roleFilter, page, limit]);
+  }, [search, roleFilter, page, limit, refreshKey]);
 
   const handleRoleChange = async () => {
-    if (!editUser) return;
+    if (!editUser || editRole === editUser.role) {
+      setEditUser(null);
+      return;
+    }
     setActionLoading(true);
     try {
-      await fetch(`/api/admin/users/${editUser.id}`, {
+      const res = await fetch(`/api/admin/users/${editUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: editRole }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        console.error('[AdminUsers role] API error:', res.status, data);
+        toast.error(data?.error || tp('common.error'));
+        setEditUser(null);
+        setActionLoading(false);
+        return;
+      }
       setEditUser(null);
+      toast.success(tp('admin.roleUpdated') || 'Rol actualizado');
       reload();
-    } catch (err) { console.error('[AdminUsers role]', err); }
+    } catch (err) {
+      console.error('[AdminUsers role]', err);
+      toast.error(tp('common.error'));
+      setEditUser(null);
+    }
     setActionLoading(false);
   };
 
@@ -253,6 +271,7 @@ export function AdminUsers() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{tp('admin.editRole')}</DialogTitle>
+            <DialogDescription className="sr-only">Cambiar el rol del usuario seleccionado.</DialogDescription>
           </DialogHeader>
           {editUser && (
             <div className="space-y-4">

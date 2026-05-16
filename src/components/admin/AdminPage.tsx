@@ -10,6 +10,8 @@ import { AdminPromotions } from './AdminPromotions';
 import { AdminUsers } from './AdminUsers';
 import { AdminCategories } from './AdminCategories';
 import { AdminPayments } from './AdminPayments';
+import { AdminFlyers } from './AdminFlyers';
+import { AdminFlyerPlans } from './AdminFlyerPlans';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import type { UserRole } from '@/lib/types';
@@ -21,6 +23,8 @@ const pages: Record<string, React.FC> = {
   users: AdminUsers,
   categories: AdminCategories,
   payments: AdminPayments,
+  flyers: AdminFlyers,
+  plans: AdminFlyerPlans,
 };
 
 export function AdminPage() {

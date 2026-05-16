@@ -177,6 +177,7 @@ model Payment {
   id           String    @id
   userId       String
   listingId    String?   @unique
+  flyerId      String?   @unique
   type         String
   amount       Float
   status       String    @default("PENDING")
@@ -188,9 +189,65 @@ model Payment {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime
   listing      Listing?  @relation(fields: [listingId], references: [id])
+  flyer        Flyer?    @relation(fields: [flyerId], references: [id])
   user         User      @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([flyerId])
+}
+
+model Flyer {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  description   String?
+  businessName  String
+  businessPhone String?
+  businessEmail String?
+  businessWebsite String?
+  businessAddress String?
+  municipality  String?
+  category      String    @default("SUPERMARKET")
+  image         String
+  thumbnail     String?
+  validFrom     DateTime  @default(now())
+  validUntil    DateTime?
+  tier          String    @default("BASIC")
+  status        String    @default("ACTIVE")
+  viewCount     Int       @default(0)
+  clickCount    Int       @default(0)
+  authorId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  author        User      @relation("UserFlyers", fields: [authorId], references: [id])
+  payment       Payment?
+
+  @@index([municipality])
+  @@index([category, status])
+  @@index([validFrom, validUntil])
+  @@index([tier, status])
+  @@index([authorId])
+}
+
+model FlyerPlan {
+  id             String   @id @default(cuid())
+  tier           String   @unique
+  nameEs         String
+  nameEn         String
+  price          Float    @default(0)
+  priceLabelEs   String
+  priceLabelEn   String
+  badgeEs        String
+  badgeEn        String
+  color          String   @default("#6B7280")
+  featuresEs     String   @default("[]")
+  featuresEn     String   @default("[]")
+  flyersPerWeek  Int      @default(1)
+  isPopular      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
 }
 
 model RecyclingPoint {
@@ -243,4 +300,5 @@ model User {
   receivedMessages                 Message[]  @relation("Message_receiverIdToUser")
   sentMessages                     Message[]  @relation("Message_senderIdToUser")
   payments                         Payment[]
+  flyers                           Flyer[]    @relation("UserFlyers")
 }

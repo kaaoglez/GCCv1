@@ -30,15 +30,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create user
+    // Create user with generated ID
+    const userId = crypto.randomUUID();
+
+    const now = new Date();
+
     const user = await db.user.create({
       data: {
+        id: userId,
         name,
         email,
         password,
         municipality: municipality || null,
         role: 'MEMBER',
         language: 'ES',
+        createdAt: now,
+        updatedAt: now,
       },
     });
 

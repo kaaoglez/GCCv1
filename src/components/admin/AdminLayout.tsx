@@ -7,8 +7,8 @@ import type { AdminPageKey, UserRole } from '@/lib/types';
 import { ROLE_LABELS, ROLE_PAGE_PERMISSIONS } from '@/lib/types';
 import {
   LogOut, Menu, Leaf, ChevronRight,
-  LayoutDashboard, FileText, Sparkles, Users, FolderOpen, CreditCard,
-  ExternalLink, Bell, Crown, ShieldCheck, Eye, Shield, ShieldOff,
+  LayoutDashboard, FileText, Sparkles, Users, FolderOpen, CreditCard, Newspaper,
+  ExternalLink, Bell, Crown, ShieldCheck, Eye, Shield, ShieldOff, Tag,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -20,6 +20,8 @@ const allNavItems: { key: AdminPageKey; label: string; icon: React.ReactNode }[]
   { key: 'users', label: 'Usuarios', icon: <Users className="w-5 h-5" /> },
   { key: 'categories', label: 'Categorías', icon: <FolderOpen className="w-5 h-5" /> },
   { key: 'payments', label: 'Pagos', icon: <CreditCard className="w-5 h-5" /> },
+  { key: 'flyers', label: 'Flyers', icon: <Newspaper className="w-5 h-5" /> },
+  { key: 'plans', label: 'Planes Folletos', icon: <Tag className="w-5 h-5" /> },
 ];
 
 function getRoleLabel(role: string): string {
@@ -177,6 +179,8 @@ export function AdminLayout({ children, onBack }: { children: React.ReactNode; o
     users: 'Usuarios',
     categories: 'Categorías',
     payments: 'Pagos',
+    flyers: 'Flyers',
+    plans: 'Planes de Folletos',
   };
 
   const pageTitle = pageTitles[activePage] || 'Dashboard';

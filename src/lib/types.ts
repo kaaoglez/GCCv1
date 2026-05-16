@@ -43,19 +43,81 @@ export const ROLE_LABELS: Record<UserRole, { es: string; en: string; color: stri
 };
 
 /** Which admin pages each role can access */
-export type AdminPageKey = 'dashboard' | 'listings' | 'promotions' | 'users' | 'categories' | 'payments';
+export type AdminPageKey = 'dashboard' | 'listings' | 'promotions' | 'users' | 'categories' | 'payments' | 'flyers' | 'plans';
 
 export const ROLE_PAGE_PERMISSIONS: Record<UserRole, AdminPageKey[]> = {
   MEMBER: [],
   BUSINESS: [],
   MODERATOR: ['dashboard', 'listings', 'users', 'categories'],
-  ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments'],
-  SUPER_ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments'],
+  ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments', 'flyers', 'plans'],
+  SUPER_ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments', 'flyers', 'plans'],
 };
 
 export type Language = 'ES' | 'EN';
 export type ContactMethod = 'message' | 'phone' | 'email' | 'whatsapp';
 export type FacilityType = 'ecoparque' | 'container' | 'clean_point' | 'specialized';
+export type FlyerCategory = 'SUPERMARKET' | 'RESTAURANT' | 'FASHION' | 'ELECTRONICS' | 'HOME' | 'BEAUTY' | 'SPORTS' | 'PHARMACY' | 'AUTOMOTIVE' | 'SERVICES' | 'OTHER';
+export type FlyerTier = 'BASIC' | 'FEATURED' | 'PREMIUM';
+export type FlyerStatus = 'ACTIVE' | 'EXPIRED' | 'PAUSED' | 'DRAFT';
+
+export const FLYER_CATEGORIES: Record<FlyerCategory, { nameEs: string; nameEn: string; icon: string; color: string }> = {
+  SUPERMARKET: { nameEs: 'Supermercados', nameEn: 'Supermarkets', icon: 'shopping-cart', color: '#16A34A' },
+  RESTAURANT:  { nameEs: 'Restaurantes', nameEn: 'Restaurants', icon: 'utensils', color: '#EA580C' },
+  FASHION:     { nameEs: 'Moda', nameEn: 'Fashion', icon: 'shirt', color: '#DB2777' },
+  ELECTRONICS: { nameEs: 'Electrónica', nameEn: 'Electronics', icon: 'monitor', color: '#2563EB' },
+  HOME:        { nameEs: 'Hogar', nameEn: 'Home', icon: 'home', color: '#9333EA' },
+  BEAUTY:      { nameEs: 'Belleza', nameEn: 'Beauty', icon: 'sparkles', color: '#EC4899' },
+  SPORTS:      { nameEs: 'Deportes', nameEn: 'Sports', icon: 'dumbbell', color: '#0891B2' },
+  PHARMACY:    { nameEs: 'Farmacias', nameEn: 'Pharmacies', icon: 'heart-pulse', color: '#DC2626' },
+  AUTOMOTIVE:  { nameEs: 'Automoción', nameEn: 'Automotive', icon: 'car', color: '#1D4ED8' },
+  SERVICES:    { nameEs: 'Servicios', nameEn: 'Services', icon: 'wrench', color: '#78716C' },
+  OTHER:       { nameEs: 'Otros', nameEn: 'Other', icon: 'store', color: '#6B7280' },
+};
+
+// Default flyer plans — used only as seed data when the database is empty.
+// Admin can manage plans via /admin/plans after first load.
+export const FLYER_PLANS = [
+  {
+    id: 'BASIC' as FlyerTier,
+    nameEs: 'Básico',
+    nameEn: 'Basic',
+    price: 15,
+    priceLabelEs: '15€/mes',
+    priceLabelEn: '€15/month',
+    featuresEs: ['1 flyer por semana', 'Aparece en la sección de ofertas', 'Estadísticas básicas'],
+    featuresEn: ['1 flyer per week', 'Appears in the offers section', 'Basic statistics'],
+    color: '#6B7280',
+    badgeEs: 'BÁSICO',
+    badgeEn: 'BASIC',
+  },
+  {
+    id: 'FEATURED' as FlyerTier,
+    nameEs: 'Destacado',
+    nameEn: 'Featured',
+    price: 30,
+    priceLabelEs: '30€/mes',
+    priceLabelEn: '€30/month',
+    featuresEs: ['Hasta 2 flyers por semana', 'Posición preferente en la sección', 'Aparece en el newsletter', 'Badge "Oferta destacada"'],
+    featuresEn: ['Up to 2 flyers per week', 'Preferred position in the section', 'Appears in the newsletter', '"Featured offer" badge'],
+    color: '#F59E0B',
+    badgeEs: 'DESTACADO',
+    badgeEn: 'FEATURED',
+  },
+  {
+    id: 'PREMIUM' as FlyerTier,
+    nameEs: 'Premium',
+    nameEn: 'Premium',
+    price: 50,
+    priceLabelEs: '50€/mes',
+    priceLabelEn: '€50/month',
+    featuresEs: ['Hasta 4 flyers por semana', 'Banner en la cabecera del newsletter', 'Estadísticas avanzadas', 'Soporte prioritario', 'Badge "Premium"'],
+    featuresEn: ['Up to 4 flyers per week', 'Banner in the newsletter header', 'Advanced statistics', 'Priority support', '"Premium" badge'],
+    color: '#EA580C',
+    badgeEs: 'PREMIUM',
+    badgeEn: 'PREMIUM',
+    isPopular: true,
+  },
+];
 
 // ─────────────────────────────────────────────────────────────
 // MUNICIPALITIES OF GRAN CANARIA
@@ -284,6 +346,31 @@ export interface RecyclingPointDTO {
   email?: string;
   facilityType: FacilityType;
   isActive: boolean;
+}
+
+export interface FlyerDTO {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  businessName: string;
+  businessPhone?: string;
+  businessEmail?: string;
+  businessWebsite?: string;
+  businessAddress?: string;
+  municipality?: string;
+  category: FlyerCategory;
+  image: string;
+  thumbnail?: string;
+  validFrom: string;
+  validUntil?: string;
+  tier: FlyerTier;
+  status: FlyerStatus;
+  viewCount: number;
+  clickCount: number;
+  authorId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserSummaryDTO {

@@ -23,7 +23,7 @@ export function __skipHistoryPush(suppress: boolean) { _skipPush = suppress; }
 
 function tryPushHistory() { if (!_skipPush) _pushHistory?.(); }
 
-export type PageView = 'home' | 'anuncios' | 'categorias' | 'eventos' | 'news' | 'directory' | 'recycling' | 'messages' | 'perfil' | 'mis-anuncios' | 'favoritos';
+export type PageView = 'home' | 'anuncios' | 'categorias' | 'eventos' | 'news' | 'directory' | 'recycling' | 'flyers' | 'messages' | 'perfil' | 'mis-anuncios' | 'mis-flyers' | 'crear-folleto' | 'favoritos';
 
 interface ModalState {
   // Current page view (client-side routing)
@@ -113,6 +113,10 @@ interface ModalState {
   // Listings refresh key — bumped when listing data changes (status, delete, etc.)
   listingsRefreshKey: number;
   bumpListingsRefreshKey: () => void;
+
+  // Editing flyer ID — set before navigating to crear-folleto page
+  editingFlyerId: string | null;
+  setEditingFlyerId: (id: string | null) => void;
 }
 
 export const useModalStore = create<ModalState>()((set) => ({
@@ -224,4 +228,8 @@ export const useModalStore = create<ModalState>()((set) => ({
   // ── Listings refresh key ──
   listingsRefreshKey: 0,
   bumpListingsRefreshKey: () => set((s) => ({ listingsRefreshKey: s.listingsRefreshKey + 1 })),
+
+  // ── Editing flyer ID ──
+  editingFlyerId: null,
+  setEditingFlyerId: (id) => set({ editingFlyerId: id }),
 }));

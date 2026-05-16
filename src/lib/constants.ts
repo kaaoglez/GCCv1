@@ -1569,6 +1569,7 @@ export const NAV_ITEMS: TranslationString[] = [
   { es: 'Categorías', en: 'Categories' },
   { es: 'Eventos', en: 'Events' },
   { es: 'Noticias', en: 'News' },
+  { es: 'Ofertas', en: 'Offers' },
   { es: 'Directorio', en: 'Directory' },
   { es: 'Reciclaje', en: 'Recycling' },
 ];

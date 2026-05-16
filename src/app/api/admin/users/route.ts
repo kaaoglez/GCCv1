@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
       isVerified: u.isVerified,
       isActive: u.isActive,
       businessName: u.businessName,
+      listingCount: u._count.listings,
       createdAt: u.createdAt.toISOString(),
       updatedAt: u.updatedAt.toISOString(),
-      _count: u._count,
     }));
 
     const response: PaginatedResponse<typeof data[number]> = {

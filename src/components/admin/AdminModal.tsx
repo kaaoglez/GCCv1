@@ -11,6 +11,7 @@ import { AdminPromotions } from './AdminPromotions';
 import { AdminUsers } from './AdminUsers';
 import { AdminCategories } from './AdminCategories';
 import { AdminPayments } from './AdminPayments';
+import { AdminFlyers } from './AdminFlyers';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ const pages: Record<string, React.FC> = {
   users: AdminUsers,
   categories: AdminCategories,
   payments: AdminPayments,
+  flyers: AdminFlyers,
 };
 
 export function AdminModal() {

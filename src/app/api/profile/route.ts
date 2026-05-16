@@ -145,6 +145,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No hay cambios' }, { status: 400 });
     }
 
+    updateData.updatedAt = new Date();
+
     const updated = await db.user.update({
       where: { id: userId },
       data: updateData,

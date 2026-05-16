@@ -200,6 +200,7 @@ const NAV_KEY_TO_VIEW: PageView[] = [
   'categorias', // categories
   'eventos',    // events
   'news',       // news
+  'flyers',     // offers
   'directory',  // directory
   'recycling',  // recycling
 ];

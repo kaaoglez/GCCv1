@@ -6,6 +6,18 @@ import path from 'path';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_SIZE_FLYER = 10 * 1024 * 1024; // 10MB for flyers
+
+/** Purposes: 'avatar' (default, 2MB) | 'flyer' (10MB) */
+function getMaxSize(purpose: string): number {
+  if (purpose === 'flyer') return MAX_SIZE_FLYER;
+  return MAX_SIZE;
+}
+
+function getPrefix(purpose: string): string {
+  if (purpose === 'flyer') return 'flyer';
+  return 'avatar';
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +28,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const purpose = (formData.get('purpose') as string) || 'avatar';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -28,9 +41,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (file.size > MAX_SIZE) {
+    const maxSize = getMaxSize(purpose);
+ if (file.size > maxSize) {
+      const maxMB = maxSize / (1024 * 1024);
       return NextResponse.json(
-        { error: 'La imagen no puede superar 2MB' },
+        { error: `La imagen no puede superar ${maxMB}MB` },
         { status: 400 }
       );
     }
@@ -38,9 +53,10 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Generate unique filename
+    // Generate unique filename based on purpose
     const ext = file.name.split('.').pop() || 'jpg';
-    const filename = `avatar-${session.user.id}-${Date.now()}.${ext}`;
+    const prefix = getPrefix(purpose);
+    const filename = `${prefix}-${session.user.id}-${Date.now()}.${ext}`;
 
     // Ensure uploads directory exists
     const uploadDir = path.join(process.cwd(), 'public', 'uploads');

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { formatNumber, getRelativeTime } from '@/lib/format';
 import { toast } from 'sonner';
-import { Search, Shield, ShieldOff, UserCog, ChevronLeft, ChevronRight, Crown, ShieldCheck, Eye } from 'lucide-react';
+import { Search, Shield, ShieldOff, UserCog, ChevronLeft, ChevronRight, Crown, ShieldCheck, Eye, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,8 +57,40 @@ export function AdminUsers() {
   const [editRole, setEditRole] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [apiError, setApiError] = useState('');
+
+  // Delete user state
+  const [deleteUser, setDeleteUser] = useState<UserRow | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const reload = () => setRefreshKey((k) => k + 1);
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteUser.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || tp('common.error'));
+        setDeleteUser(null);
+        setDeleteConfirm(false);
+        setDeleteLoading(false);
+        return;
+      }
+      toast.success(tp('admin.userDeleted') || 'Usuario eliminado correctamente');
+      setDeleteUser(null);
+      setDeleteConfirm(false);
+      reload();
+    } catch (err) {
+      console.error('[AdminUsers delete]', err);
+      toast.error(tp('common.error'));
+      setDeleteUser(null);
+      setDeleteConfirm(false);
+    }
+    setDeleteLoading(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -67,11 +99,25 @@ export function AdminUsers() {
     if (roleFilter) params.set('role', roleFilter);
     (async () => {
       setLoading(true);
+      setApiError('');
       try {
         const res = await fetch(`/api/admin/users?${params}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          if (res.status === 401) {
+            setApiError(locale === 'es'
+              ? 'Sesión de admin expirada. Vuelve a entrar al panel de administración.'
+              : 'Admin session expired. Please re-enter the admin panel.');
+          } else {
+            setApiError(errData?.error || tp('common.error'));
+          }
+          if (!cancelled) { setUsers([]); setTotalPages(1); setTotal(0); }
+          if (!cancelled) setLoading(false);
+          return;
+        }
         const data = await res.json();
         if (!cancelled) { setUsers(Array.isArray(data.data) ? data.data : []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); }
-      } catch (err) { console.error('[AdminUsers load]', err); }
+      } catch (err) { console.error('[AdminUsers load]', err); if (!cancelled) setApiError(tp('common.error')); }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -184,6 +230,18 @@ export function AdminUsers() {
         </div>
       </div>
 
+      {apiError && (
+        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+          <p className="text-sm text-amber-700 dark:text-amber-300">{apiError}</p>
+          <button
+            onClick={reload}
+            className="mt-2 text-sm font-medium text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 underline"
+          >
+            {locale === 'es' ? 'Reintentar' : 'Retry'}
+          </button>
+        </div>
+      )}
+
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -256,9 +314,19 @@ export function AdminUsers() {
                       <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{user.listingCount}</td>
                       <td className="px-4 py-3 text-muted-foreground hidden xl:table-cell">{getRelativeTime(user.createdAt, locale)}</td>
                       <td className="px-4 py-3 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => { setEditUser(user); setEditRole(user.role); }}>
-                          <UserCog className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => { setEditUser(user); setEditRole(user.role); }}>
+                            <UserCog className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => { setDeleteUser(user); setDeleteConfirm(false); }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -266,6 +334,76 @@ export function AdminUsers() {
           </table>
         </div>
       </Card>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={!!deleteUser} onOpenChange={() => { setDeleteUser(null); setDeleteConfirm(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              {tp('admin.deleteUser') || 'Eliminar usuario'}
+            </DialogTitle>
+          </DialogHeader>
+          {deleteUser && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm font-medium">{deleteUser.name}</p>
+                <p className="text-xs text-muted-foreground">{deleteUser.email}</p>
+              </div>
+
+              {!deleteConfirm ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {locale === 'es'
+                      ? 'Esta acción eliminará permanentemente la cuenta del usuario y todos sus datos asociados (anuncios, mensajes, favoritos, folletos, etc.). Esta acción NO se puede deshacer.'
+                      : 'This action will permanently delete the user account and all associated data (listings, messages, favorites, flyers, etc.). This action CANNOT be undone.'}
+                  </p>
+                  <Button
+                    variant="destructive"
+                    className="w-full gap-2"
+                    onClick={() => setDeleteConfirm(true)}
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    {locale === 'es' ? 'Sí, entiendo. Continuar' : 'Yes, I understand. Continue'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-destructive">
+                    {locale === 'es'
+                      ? '¿Estás completamente seguro? Escribe el nombre del usuario para confirmar:'
+                      : 'Are you absolutely sure? Type the user name to confirm:'}
+                  </p>
+                  <Input
+                    placeholder={deleteUser.name}
+                    onChange={(e) => setDeleteConfirm(e.target.value === deleteUser.name ? 'confirmed' : 'typing')}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {locale === 'es'
+                      ? `Escribe "${deleteUser.name}" para confirmar la eliminación`
+                      : `Type "${deleteUser.name}" to confirm deletion`}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteUser(null); setDeleteConfirm(false); }} disabled={deleteLoading}>
+              {tp('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={deleteLoading || deleteConfirm !== 'confirmed'}
+              className="gap-2"
+            >
+              {deleteLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              <Trash2 className="w-4 h-4" />
+              {tp('admin.deleteUser') || 'Eliminar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editUser} onOpenChange={() => setEditUser(null)}>
         <DialogContent className="max-w-md">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import type { CategoryDTO } from '@/lib/types';
-import { adminUpdateCategorySchema, validateBody } from '@/lib/validations';
+import { adminUpdateCategorySchema, adminCreateCategorySchema, validateBody } from '@/lib/validations';
 
 // GET /api/admin/categories — All categories with children, listing counts and revenue
 export async function GET() {
@@ -259,6 +259,132 @@ export async function PUT(request: NextRequest) {
     console.error('[PUT /api/admin/categories]', error);
     return NextResponse.json(
       { error: 'Failed to update category' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/admin/categories — Create new category
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const validation = validateBody(adminCreateCategorySchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+    const data = validation.data;
+
+    // Generate slug from nameEs
+    const baseSlug = data.nameEs
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    let slug = baseSlug;
+    let counter = 1;
+    while (await db.category.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    const category = await db.category.create({
+      data: {
+        id: crypto.randomUUID(),
+        slug,
+        nameEs: data.nameEs,
+        nameEn: data.nameEn,
+        descEs: data.descEs || null,
+        descEn: data.descEn || null,
+        icon: data.icon,
+        color: data.color,
+        parentId: data.parentId || null,
+        sortOrder: data.sortOrder,
+        isActive: data.isActive,
+        isPaid: data.isPaid,
+        price: data.price || null,
+        highlightPrice: data.highlightPrice || null,
+        vipPrice: data.vipPrice || null,
+        allowedFields: JSON.stringify(data.allowedFields || []),
+        showPrice: data.showPrice,
+        showLocation: data.showLocation,
+        showImages: data.showImages,
+        maxImages: data.maxImages,
+        expiryDays: data.expiryDays,
+      },
+      include: { _count: { select: { listings: true } } },
+    });
+
+    let allowedFields: CategoryDTO['allowedFields'] = [];
+    try { allowedFields = JSON.parse(category.allowedFields || '[]'); } catch { allowedFields = []; }
+
+    return NextResponse.json({
+      id: category.id,
+      slug: category.slug,
+      nameEs: category.nameEs,
+      nameEn: category.nameEn,
+      descEs: category.descEs ?? undefined,
+      descEn: category.descEn ?? undefined,
+      icon: category.icon,
+      color: category.color,
+      parentId: category.parentId ?? undefined,
+      sortOrder: category.sortOrder,
+      isActive: category.isActive,
+      isPaid: category.isPaid,
+      price: category.price ?? undefined,
+      highlightPrice: category.highlightPrice ?? undefined,
+      vipPrice: category.vipPrice ?? undefined,
+      allowedFields,
+      showPrice: category.showPrice,
+      showLocation: category.showLocation,
+      showImages: category.showImages,
+      maxImages: category.maxImages,
+      expiryDays: category.expiryDays,
+      listingCount: category._count.listings,
+    }, { status: 201 });
+  } catch (error) {
+    console.error('[POST /api/admin/categories]', error);
+    return NextResponse.json(
+      { error: 'Failed to create category' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/admin/categories?id=... — Delete category
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+    }
+
+    // Check if category has children
+    const children = await db.category.count({ where: { parentId: id } });
+    if (children > 0) {
+      return NextResponse.json(
+        { error: 'No se puede borrar una categoría que tiene subcategorías. Borra las subcategorías primero.' },
+        { status: 400 }
+      );
+    }
+
+    // Check if category has listings
+    const listingCount = await db.listing.count({ where: { categoryId: id } });
+    if (listingCount > 0) {
+      return NextResponse.json(
+        { error: `No se puede borrar una categoría con ${listingCount} anuncios activos.` },
+        { status: 400 }
+      );
+    }
+
+    await db.category.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[DELETE /api/admin/categories]', error);
+    return NextResponse.json(
+      { error: 'Failed to delete category' },
       { status: 500 }
     );
   }

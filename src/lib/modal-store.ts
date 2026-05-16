@@ -140,14 +140,14 @@ export const useModalStore = create<ModalState>()((set) => ({
   // ── Post Ad Page: full-page, push on OPEN only ──
   isPostAdPage: false,
   openPostAdPage: () =>
-    { set({ isPostAdOpen: false, isPostAdPage: true }); tryPushHistory(); },
+    { set({ isPostAdOpen: false, isPostAdPage: true, isPromoteBusinessPage: false }); tryPushHistory(); },
   closePostAdPage: () =>
     { set({ isPostAdPage: false }); },
 
   // ── Promote Business Page: full-page, push on OPEN only ──
   isPromoteBusinessPage: false,
   openPromoteBusinessPage: () =>
-    { set({ isPromoteBusinessPage: true }); tryPushHistory(); },
+    { set({ isPromoteBusinessPage: true, isPostAdPage: false }); tryPushHistory(); },
   closePromoteBusinessPage: () =>
     { set({ isPromoteBusinessPage: false }); },
 

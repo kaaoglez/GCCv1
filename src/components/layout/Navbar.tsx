@@ -242,33 +242,76 @@ export function Navbar() {
   };
 
   return (
-    <header
-      className={`sticky top-0 z-50 w-full transition-all duration-300 ${
-        scrolled
-          ? 'bg-background/80 backdrop-blur-lg border-b border-border shadow-sm'
-          : 'bg-background border-b border-transparent'
-      }`}
-    >
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 w-full">
+      {/* ── Top Bar: Promo Space (LEFT) + CTA Buttons (RIGHT) ── */}
+      <div className="bg-primary text-primary-foreground">
+        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* Left: Promotional / Ad space */}
+          <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
+            <Megaphone className="h-4 w-4 shrink-0 opacity-80" />
+            <p className="text-sm font-medium truncate opacity-90">
+              {locale === 'es'
+                ? '🌿 Tu marketplace de comunidad en Gran Canaria — Anuncia gratis o destaca tu negocio'
+                : '🌿 Your Gran Canaria community marketplace — List for free or boost your business'}
+            </p>
+          </div>
+
+          {/* Right: CTA Buttons */}
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <Button
+              size="sm"
+              className="bg-white/15 hover:bg-white/25 text-primary-foreground border border-white/20 gap-1.5 font-semibold backdrop-blur-sm"
+              onClick={() => {
+                if (!session?.user) {
+                  openAuth();
+                  return;
+                }
+                useModalStore.getState().openPostAdPage();
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">{tp('nav', 'postAd')}</span>
+            </Button>
+            <Button
+              size="sm"
+              className="bg-accent hover:bg-accent/90 text-white gap-1.5 font-semibold shadow-sm"
+              onClick={() => useModalStore.getState().openPromoteBusinessPage()}
+            >
+              <Megaphone className="h-4 w-4" />
+              <span className="hidden sm:inline">{locale === 'es' ? 'Promocionar' : 'Advertise'}</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Navbar ───────────────────────────────────── */}
+      <nav
+        className={`border-b border-border bg-background transition-all duration-300 ${
+          scrolled
+            ? 'shadow-sm'
+            : ''
+        }`}
+      >
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* ── Logo ──────────────────────────────────────── */}
         <button
           onClick={handleHomeClick}
-          className="flex items-center gap-2 group"
+          className="flex items-center gap-2 group shrink-0"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:scale-105">
-            <Leaf className="h-5 w-5" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:scale-105">
+            <Leaf className="h-4 w-4" />
           </div>
-          <span className="hidden sm:inline-block font-heading font-bold text-lg text-primary">
+          <span className="hidden sm:inline-block font-heading font-bold text-lg text-primary whitespace-nowrap">
             {APP_CONFIG.name}
           </span>
         </button>
 
         {/* ── Desktop Nav Links ──────────────────────────── */}
-        <div className="hidden lg:flex items-center gap-1">
+        <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
           {currentView !== 'home' && (
             <button
               onClick={handleHomeClick}
-              className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-muted flex items-center gap-1.5"
+              className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-muted flex items-center gap-1.5 whitespace-nowrap"
             >
               <Home className="size-3.5" />
               {tp('common', 'home')}
@@ -278,7 +321,7 @@ export function Navbar() {
             <button
               key={index}
               onClick={() => handleNavClick(index)}
-              className={`px-3 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted ${
+              className={`px-3 py-2 text-sm font-medium transition-colors rounded-md hover:bg-muted whitespace-nowrap ${
                 currentView === NAV_KEY_TO_VIEW[index]
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-primary'
@@ -290,7 +333,7 @@ export function Navbar() {
         </div>
 
         {/* ── Desktop Right Actions ──────────────────────── */}
-        <div className="hidden lg:flex items-center gap-2">
+        <div className="hidden lg:flex items-center gap-2 shrink-0">
           {/* Language Toggle */}
           <Button
             variant="ghost"
@@ -342,35 +385,27 @@ export function Navbar() {
 
           {/* Login / User Menu */}
           <UserMenu />
-
-          {/* CTA: Post Ad */}
-          <Button
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold shadow-sm"
-            onClick={() => {
-              if (!session?.user) {
-                openAuth();
-                return;
-              }
-              useModalStore.getState().openPostAdPage();
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            {tp('nav', 'postAd')}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 text-muted-foreground hover:text-primary hover:border-primary/50 font-semibold"
-            onClick={() => useModalStore.getState().openPromoteBusinessPage()}
-          >
-            <Megaphone className="h-4 w-4" />
-            <span className="hidden xl:inline">{locale === 'es' ? 'Promocionar' : 'Advertise'}</span>
-          </Button>
         </div>
 
         {/* ── Mobile Actions ────────────────────────────── */}
         <div className="flex lg:hidden items-center gap-1.5">
+          {/* Messages badge */}
+          {session?.user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-muted-foreground hover:text-primary"
+              onClick={() => navigateTo('messages')}
+            >
+              <Mail className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center size-4 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          )}
+
           {/* Language Toggle */}
           <Button
             variant="ghost"
@@ -556,6 +591,7 @@ export function Navbar() {
               </div>
             </SheetContent>
           </Sheet>
+        </div>
         </div>
       </nav>
     </header>

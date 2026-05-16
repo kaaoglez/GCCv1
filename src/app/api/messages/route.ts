@@ -134,6 +134,7 @@ export async function POST(request: NextRequest) {
 
     const message = await db.message.create({
       data: {
+        id: crypto.randomUUID(),
         senderId,
         receiverId,
         subject: finalSubject,

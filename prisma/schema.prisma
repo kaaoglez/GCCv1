@@ -21,7 +21,7 @@ model Article {
   publishedAt DateTime?
   viewCount   Int       @default(0)
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime  @updatedAt
   author      User      @relation(fields: [authorId], references: [id])
 
   @@index([isPublished, publishedAt])
@@ -50,7 +50,7 @@ model Category {
   maxImages      Int        @default(5)
   expiryDays     Int        @default(30)
   createdAt      DateTime   @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime   @updatedAt
   parent         Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
   children       Category[] @relation("CategoryToCategory")
   listings       Listing[]
@@ -64,7 +64,7 @@ model CommunityStat {
   statKey   String   @unique
   statValue Float
   statLabel String?
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
 
@@ -97,7 +97,7 @@ model Event {
   status       String    @default("UPCOMING")
   viewCount    Int       @default(0)
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime  @updatedAt
   author       User      @relation(fields: [authorId], references: [id])
 
   @@index([municipality])
@@ -141,7 +141,7 @@ model Listing {
   showEmail     Boolean    @default(true)
   contactMethod String     @default("message")
   createdAt     DateTime   @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime   @updatedAt
   favorites     Favorite[]
   author        User       @relation(fields: [authorId], references: [id])
   category      Category   @relation(fields: [categoryId], references: [id])
@@ -187,7 +187,7 @@ model Payment {
   validFrom    DateTime  @default(now())
   validUntil   DateTime?
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime  @updatedAt
   listing      Listing?  @relation(fields: [listingId], references: [id])
   flyer        Flyer?    @relation(fields: [flyerId], references: [id])
   user         User      @relation(fields: [userId], references: [id])
@@ -218,7 +218,7 @@ model Flyer {
   clickCount    Int       @default(0)
   authorId      String
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime  @updatedAt
   author        User      @relation("UserFlyers", fields: [authorId], references: [id])
   payment       Payment?
 
@@ -247,7 +247,7 @@ model FlyerPlan {
   isActive       Boolean  @default(true)
   sortOrder      Int      @default(0)
   createdAt      DateTime @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime @updatedAt
 }
 
 model RecyclingPoint {
@@ -266,7 +266,7 @@ model RecyclingPoint {
   facilityType String   @default("ecoparque")
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
 }
 
 model User {
@@ -283,7 +283,7 @@ model User {
   isVerified                       Boolean    @default(false)
   isActive                         Boolean    @default(true)
   createdAt                        DateTime   @default(now())
-  updatedAt                        DateTime
+  updatedAt                        DateTime   @updatedAt
   businessName                     String?
   businessDescription              String?
   businessAddress                  String?

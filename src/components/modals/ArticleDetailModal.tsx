@@ -18,7 +18,7 @@ import { useModalStore } from '@/lib/modal-store';
 import { formatDate } from '@/lib/format';
 import { ARTICLE_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 import type { ArticleCategory } from '@/lib/types';
 
 const ARTICLE_CATEGORY_COLORS: Record<ArticleCategory, string> = {
@@ -118,12 +118,10 @@ export function ArticleDetailModal() {
         {/* Image hero */}
         <div className="relative aspect-[16/7] w-full bg-muted shrink-0 overflow-hidden">
           {article.image ? (
-            <Image
+            <img
               src={article.image}
               alt={article.title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">

@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     // Create the payment with PENDING status (manual)
     const payment = await db.payment.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         listingId: listingId || null,
         type: type as PaymentType,

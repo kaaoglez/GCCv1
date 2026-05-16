@@ -87,7 +87,7 @@ export function PostAdPage() {
   const [price, setPrice] = useState('');
   const [municipality, setMunicipality] = useState('');
   const [location, setLocation] = useState('');
-  const [contactMethod, setContactMethod] = useState('message');
+  const [contactMethods, setContactMethods] = useState<string[]>(['message']);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
@@ -122,14 +122,63 @@ export function PostAdPage() {
     }
   }, [isPostAdPage]);
 
-  // When payment modal closes on a paid category step, mark as confirmed
+  // When payment modal closes, detect and auto-submit or mark as confirmed
   const wasPaymentOpen = useRef(false);
+  const pendingTierPayment = useRef(false);
+
   useEffect(() => {
-    if (wasPaymentOpen.current && !isPaymentOpen && isPaidCategory && step === 1) {
-      setPaymentConfirmed(true);
+    if (isPaymentOpen) {
+      wasPaymentOpen.current = true;
     }
-    if (isPaymentOpen) wasPaymentOpen.current = true;
+    // Payment modal closed
+    if (wasPaymentOpen.current && !isPaymentOpen) {
+      // Paid category payment confirmed (step 1) — auto-advance
+      if (isPaidCategory && step === 1) {
+        setPaymentConfirmed(true);
+        setStep(2);
+      }
+      // Normal category with paid tier — auto-submit after payment
+      if (pendingTierPayment.current && !isPaidCategory) {
+        pendingTierPayment.current = false;
+        submitListing();
+      }
+      wasPaymentOpen.current = false;
+    }
   }, [isPaymentOpen, isPaidCategory, step]);
+
+  async function submitListing() {
+    if (!selectedCategory || !title || !description) return;
+    setSubmitting(true);
+    try {
+      const metadata: Record<string, unknown> = {};
+      if (price) metadata.price = parseFloat(price);
+      if (websiteUrl) metadata.websiteUrl = websiteUrl;
+
+      const res = await fetch('/api/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          categoryId: selectedCategory.id,
+          tier: selectedTier,
+          metadata,
+          images,
+          municipality: municipality || undefined,
+          location: location || undefined,
+          contactMethods,
+        }),
+      });
+
+      if (res.ok) {
+        setSuccess(true);
+      }
+    } catch {
+      // silent
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function resetForm() {
     setStep(0);
@@ -141,13 +190,14 @@ export function PostAdPage() {
     setPrice('');
     setMunicipality('');
     setLocation('');
-    setContactMethod('message');
+    setContactMethods(['message']);
     setWebsiteUrl('');
     setImages([]);
     setUploadingIds(new Set());
     setDragOver(false);
     setSuccess(false);
     setPaymentConfirmed(false);
+    pendingTierPayment.current = false;
   }
 
   function handleClose() {
@@ -174,11 +224,12 @@ export function PostAdPage() {
   const planInfo = PRICING_PLANS.find((p) => p.id === selectedTier);
   const planPaymentAmount = planInfo?.price ?? 0;
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!selectedCategory || !title || !description) return;
 
-    // For normal categories with paid tier, open payment modal
+    // For normal categories with paid tier, open payment modal, then auto-submit
     if (needsPaymentAtPublish) {
+      pendingTierPayment.current = true;
       useModalStore.getState().openPayment({
         type: 'LISTING_UPGRADE',
         amount: planPaymentAmount,
@@ -189,38 +240,7 @@ export function PostAdPage() {
 
     // For paid categories: payment already confirmed in step 1
     // For FREE: submit directly
-    setSubmitting(true);
-    try {
-      const metadata: Record<string, unknown> = {};
-      if (price) metadata.price = parseFloat(price);
-      if (websiteUrl) metadata.websiteUrl = websiteUrl;
-
-      const res = await fetch('/api/listings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          categoryId: selectedCategory.id,
-          tier: selectedTier,
-          metadata,
-          images,
-          municipality: municipality || undefined,
-          location: location || undefined,
-          contactMethod,
-          showPhone: contactMethod === 'phone' || contactMethod === 'whatsapp',
-          showEmail: contactMethod === 'email' || contactMethod === 'message',
-        }),
-      });
-
-      if (res.ok) {
-        setSuccess(true);
-      }
-    } catch {
-      // error
-    } finally {
-      setSubmitting(false);
-    }
+    submitListing();
   }
 
   const canNext = () => {
@@ -252,6 +272,7 @@ export function PostAdPage() {
         try {
           const formData = new FormData();
           formData.append('file', file);
+          formData.append('purpose', 'listing');
           const res = await fetch('/api/upload', {
             method: 'POST',
             body: formData,
@@ -841,28 +862,55 @@ export function PostAdPage() {
                   />
                 </div>
 
-                {/* Contact method */}
-                <div className="space-y-2">
+                {/* Contact methods (multi-select checkboxes) */}
+                <div className="space-y-3">
                   <label className="text-sm font-medium">
                     {tp('form', 'contactMethod')}
+                    <span className="text-xs font-normal text-muted-foreground ml-1">
+                      ({locale === 'es' ? 'puedes seleccionar varias' : 'you can select multiple'})
+                    </span>
                   </label>
-                  <Select value={contactMethod} onValueChange={setContactMethod}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="message">
-                        {locale === 'es' ? 'Mensaje' : 'Message'}
-                      </SelectItem>
-                      <SelectItem value="phone">
-                        {locale === 'es' ? 'Teléfono' : 'Phone'}
-                      </SelectItem>
-                      <SelectItem value="email">
-                        {tp('form', 'email')}
-                      </SelectItem>
-                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: 'message', label: locale === 'es' ? '💬 Mensaje' : '💬 Message' },
+                      { value: 'phone', label: locale === 'es' ? '📞 Teléfono' : '📞 Phone' },
+                      { value: 'email', label: `✉️ ${locale === 'es' ? 'Email' : 'Email'}` },
+                      { value: 'whatsapp', label: '📱 WhatsApp' },
+                    ] as const).map((opt) => {
+                      const checked = contactMethods.includes(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setContactMethods((prev) =>
+                              checked
+                                ? prev.filter((m) => m !== opt.value)
+                                : [...prev, opt.value]
+                            );
+                          }}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-all',
+                            checked
+                              ? 'border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/20'
+                              : 'border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
+                              checked
+                                ? 'bg-primary border-primary'
+                                : 'border-muted-foreground/40'
+                            )}
+                          >
+                            {checked && <Check className="size-2.5 text-primary-foreground" />}
+                          </div>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Website URL */}
@@ -1097,7 +1145,17 @@ export function PostAdPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">{tp('form', 'contactMethod')}</span>
-                        <span className="font-medium capitalize">{contactMethod}</span>
+                        <span className="font-medium capitalize">
+                          {contactMethods.map((m) => {
+                            const labels: Record<string, string> = {
+                              message: locale === 'es' ? 'Mensaje' : 'Message',
+                              phone: locale === 'es' ? 'Teléfono' : 'Phone',
+                              email: 'Email',
+                              whatsapp: 'WhatsApp',
+                            };
+                            return labels[m] || m;
+                          }).join(', ')}
+                        </span>
                       </div>
                       {websiteUrl && (
                         <div className="flex justify-between">

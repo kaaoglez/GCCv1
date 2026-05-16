@@ -67,7 +67,7 @@ export function PostAdModal() {
   const [price, setPrice] = useState('');
   const [municipality, setMunicipality] = useState('');
   const [location, setLocation] = useState('');
-  const [contactMethod, setContactMethod] = useState('message');
+  const [contactMethods, setContactMethods] = useState<string[]>(['message']);
   const [images, setImages] = useState<string[]>([]);
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const [dragOver, setDragOver] = useState(false);
@@ -110,7 +110,7 @@ export function PostAdModal() {
     setPrice('');
     setMunicipality('');
     setLocation('');
-    setContactMethod('message');
+    setContactMethods(['message']);
     setImages([]);
     setUploadingIds(new Set());
     setDragOver(false);
@@ -142,9 +142,7 @@ export function PostAdModal() {
           images,
           municipality: municipality || undefined,
           location: location || undefined,
-          contactMethod,
-          showPhone: contactMethod === 'phone' || contactMethod === 'whatsapp',
-          showEmail: contactMethod === 'email' || contactMethod === 'message',
+          contactMethods,
         }),
       });
 
@@ -497,28 +495,53 @@ export function PostAdModal() {
                     />
                   </div>
 
-                  {/* Contact method */}
+                  {/* Contact methods (multi-select checkboxes) */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
                       {tp('form', 'contactMethod')}
+                      <span className="text-xs font-normal text-muted-foreground ml-1">
+                        ({locale === 'es' ? 'puedes seleccionar varias' : 'you can select multiple'})
+                      </span>
                     </label>
-                    <Select value={contactMethod} onValueChange={setContactMethod}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="message">
-                          {locale === 'es' ? 'Mensaje' : 'Message'}
-                        </SelectItem>
-                        <SelectItem value="phone">
-                          {locale === 'es' ? 'Teléfono' : 'Phone'}
-                        </SelectItem>
-                        <SelectItem value="email">
-                          {tp('form', 'email')}
-                        </SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: 'message', label: locale === 'es' ? '💬 Mensaje' : '💬 Message' },
+                        { value: 'phone', label: locale === 'es' ? '📞 Teléfono' : '📞 Phone' },
+                        { value: 'email', label: `✉️ Email` },
+                        { value: 'whatsapp', label: '📱 WhatsApp' },
+                      ] as const).map((opt) => {
+                        const checked = contactMethods.includes(opt.value);
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setContactMethods((prev) =>
+                                checked
+                                  ? prev.filter((m) => m !== opt.value)
+                                  : [...prev, opt.value]
+                              );
+                            }}
+                            className={cn(
+                              'flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all',
+                              checked
+                                ? 'border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/20'
+                                : 'border-border text-muted-foreground hover:border-primary/40'
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                'size-3.5 rounded border-2 flex items-center justify-center transition-colors shrink-0',
+                                checked ? 'bg-primary border-primary' : 'border-muted-foreground/40'
+                              )}
+                            >
+                              {checked && <Check className="size-2 text-primary-foreground" />}
+                            </div>
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Image upload */}
@@ -716,7 +739,17 @@ export function PostAdModal() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">{tp('form', 'contactMethod')}</span>
-                          <span className="font-medium capitalize">{contactMethod}</span>
+                          <span className="font-medium capitalize">
+                            {contactMethods.map((m) => {
+                              const labels: Record<string, string> = {
+                                message: locale === 'es' ? 'Mensaje' : 'Message',
+                                phone: locale === 'es' ? 'Teléfono' : 'Phone',
+                                email: 'Email',
+                                whatsapp: 'WhatsApp',
+                              };
+                              return labels[m] || m;
+                            }).join(', ')}
+                          </span>
                         </div>
                       </div>
                     </>

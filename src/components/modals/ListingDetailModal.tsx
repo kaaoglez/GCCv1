@@ -32,7 +32,7 @@ import { TierBadge } from '@/components/shared/TierBadge';
 import { CategoryBadge } from '@/components/shared/CategoryBadge';
 import { formatPrice, getRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 
 export function ListingDetailModal() {
   const { locale, tp } = useI18n();
@@ -110,12 +110,10 @@ export function ListingDetailModal() {
           <div className="relative aspect-[4/3] w-full bg-muted overflow-hidden">
             {images.length > 0 && !imgError ? (
               <>
-                <Image
+                <img
                   src={images[currentImageIndex]}
                   alt={listing.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                   onError={() => setImgError(true)}
                 />
                 {/* Image nav arrows */}
@@ -174,7 +172,7 @@ export function ListingDetailModal() {
                       : 'border-transparent opacity-50 hover:opacity-80'
                   )}
                 >
-                  <Image src={img} alt="" fill sizes="56px" className="object-cover" onError={() => setImgError(true)} />
+                  <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" onError={() => setImgError(true)} />
                 </button>
               ))}
             </div>

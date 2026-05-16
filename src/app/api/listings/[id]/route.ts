@@ -86,7 +86,11 @@ export async function PUT(
     if (body.location !== undefined) updateData.location = body.location;
     if (body.images !== undefined) updateData.images = JSON.stringify(body.images);
     if (body.metadata !== undefined) updateData.metadata = JSON.stringify(body.metadata);
-    if (body.contactMethod !== undefined) updateData.contactMethod = body.contactMethod;
+    if (body.contactMethods !== undefined) {
+      updateData.contactMethod = JSON.stringify(body.contactMethods);
+      updateData.showPhone = body.contactMethods.includes('phone') || body.contactMethods.includes('whatsapp');
+      updateData.showEmail = body.contactMethods.includes('email') || body.contactMethods.includes('message');
+    }
     if (body.showPhone !== undefined) updateData.showPhone = body.showPhone;
     if (body.showEmail !== undefined) updateData.showEmail = body.showEmail;
 

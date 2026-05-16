@@ -27,7 +27,7 @@ export const createListingSchema = z.object({
   lng: z.number().optional(),
   showPhone: z.boolean().optional(),
   showEmail: z.boolean().optional(),
-  contactMethod: z.enum(['message', 'phone', 'email', 'whatsapp'] as const).optional(),
+  contactMethods: z.array(z.enum(['message', 'phone', 'email', 'whatsapp'] as const)).optional(),
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -91,15 +91,41 @@ export const adminUpdateCategorySchema = z.object({
   sortOrder: z.number().optional(),
   isActive: z.boolean().optional(),
   isPaid: z.boolean().optional(),
-  price: z.number().optional(),
-  highlightPrice: z.number().optional(),
-  vipPrice: z.number().optional(),
+  price: z.number().nullable().optional(),
+  highlightPrice: z.number().nullable().optional(),
+  vipPrice: z.number().nullable().optional(),
   showPrice: z.boolean().optional(),
   showLocation: z.boolean().optional(),
   showImages: z.boolean().optional(),
   maxImages: z.number().optional(),
   expiryDays: z.number().optional(),
   allowedFields: z.array(z.unknown()).optional(),
+});
+
+// ─────────────────────────────────────────────────────────────
+// Admin Create Category (POST /api/admin/categories)
+// ─────────────────────────────────────────────────────────────
+
+export const adminCreateCategorySchema = z.object({
+  nameEs: z.string().min(1, 'Nombre en español requerido').max(100),
+  nameEn: z.string().min(1, 'Nombre en inglés requerido').max(100),
+  descEs: z.string().optional(),
+  descEn: z.string().optional(),
+  icon: z.string().default('circle'),
+  color: z.string().default('#52B788'),
+  parentId: z.string().nullable().optional(),
+  sortOrder: z.number().default(0),
+  isActive: z.boolean().default(true),
+  isPaid: z.boolean().default(false),
+  price: z.number().optional(),
+  highlightPrice: z.number().optional(),
+  vipPrice: z.number().optional(),
+  showPrice: z.boolean().default(true),
+  showLocation: z.boolean().default(true),
+  showImages: z.boolean().default(true),
+  maxImages: z.number().default(5),
+  expiryDays: z.number().default(30),
+  allowedFields: z.array(z.unknown()).optional().default([]),
 });
 
 // ─────────────────────────────────────────────────────────────

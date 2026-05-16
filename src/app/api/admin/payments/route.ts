@@ -163,6 +163,7 @@ export async function POST(request: NextRequest) {
     // Create the payment with COMPLETED status
     const payment = await db.payment.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
         listingId: listingId || null,
         type,

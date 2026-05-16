@@ -28,7 +28,7 @@ import {
   Leaf,
   CalendarIcon,
 } from 'lucide-react';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 
 export function EventDetailModal() {
   const { locale, tp } = useI18n();
@@ -88,7 +88,7 @@ export function EventDetailModal() {
         {/* Image with calendar date overlay */}
         <div className="relative aspect-[4/3] w-full bg-muted overflow-hidden">
           {event.image ? (
-            <Image src={event.image} alt={event.title} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover" />
+            <img src={event.image} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-primary/10">
               <CalendarIcon className="size-12 text-primary/30" />

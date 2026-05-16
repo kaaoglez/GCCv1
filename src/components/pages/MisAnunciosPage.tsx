@@ -50,7 +50,7 @@ import { navigateBack, navigateTo } from '@/hooks/use-navigation';
 import { useModalStore } from '@/lib/modal-store';
 import { formatPrice, getRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 import { toast } from 'sonner';
 import type { ListingDTO } from '@/lib/types';
 
@@ -240,7 +240,10 @@ export function MisAnunciosPage() {
         </div>
         <Button
           className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold shadow-sm"
-          onClick={() => useModalStore.getState().openPostAd()}
+          onClick={() => {
+            if (!session?.user) { useModalStore.getState().openAuth(); return; }
+            useModalStore.getState().openPostAdPage();
+          }}
         >
           <Plus className="size-4" />
           {tp('nav', 'postAd')}
@@ -258,7 +261,10 @@ export function MisAnunciosPage() {
                 ? 'Publica tu primer anuncio y llega a toda la comunidad de Gran Canaria.'
                 : 'Post your first listing and reach the entire Gran Canaria community.'}
             </p>
-            <Button className="mt-4 bg-primary hover:bg-primary/90" onClick={() => useModalStore.getState().openPostAd()}>
+            <Button className="mt-4 bg-primary hover:bg-primary/90" onClick={() => {
+              if (!session?.user) { useModalStore.getState().openAuth(); return; }
+              useModalStore.getState().openPostAdPage();
+            }}>
               <Plus className="size-4 mr-2" />
               {tp('nav', 'postAd')}
             </Button>
@@ -283,7 +289,7 @@ export function MisAnunciosPage() {
                       {/* Image */}
                       <div className="relative w-full sm:w-40 h-32 sm:h-auto bg-muted flex-shrink-0">
                         {image ? (
-                          <Image src={image} alt={listing.title} fill className="object-cover" sizes="160px" />
+                          <img src={image} alt={listing.title} className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             <ImageIcon className="size-8 opacity-30" />

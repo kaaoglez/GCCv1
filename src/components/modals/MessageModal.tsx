@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { useI18n } from '@/hooks/use-i18n';
 import { useModalStore } from '@/lib/modal-store';
 import { useSession } from 'next-auth/react';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 
 export function MessageModal() {
   const { locale, tp } = useI18n();
@@ -206,12 +206,10 @@ export function MessageModal() {
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
                     {messageConfig.listingImage && (
                       <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0">
-                        <Image
+                        <img
                           src={messageConfig.listingImage}
                           alt={messageConfig.listingTitle}
-                          fill
-                          sizes="56px"
-                          className="object-cover"
+                          className="absolute inset-0 w-full h-full object-cover"
                         />
                       </div>
                     )}

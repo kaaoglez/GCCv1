@@ -43,7 +43,7 @@ import { formatPrice, getRelativeTime, formatDate } from '@/lib/format';
 import { PRICING_PLANS } from '@/lib/types';
 import type { DynamicField } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 
 // Complete translation map for ALL listing metadata keys
 const METADATA_LABELS: Record<string, Record<string, string>> = {
@@ -419,12 +419,10 @@ export function ListingFullView() {
             <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-muted shadow-sm">
               {safeImages.length > 0 && !imageErrors[currentImageIndex] ? (
                 <>
-                  <Image
+                  <img
                     src={safeImages[currentImageIndex]}
                     alt={listing.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 40vw"
-                    className="object-cover cursor-zoom-in"
+                    className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
                     onClick={enterZoom}
                     onError={() => setImageErrors((prev) => ({ ...prev, [currentImageIndex]: true }))}
                   />
@@ -493,7 +491,7 @@ export function ListingFullView() {
                         <ImageOff className="size-5 text-muted-foreground/30" />
                       </div>
                     ) : (
-                      <Image src={img} alt="" fill sizes="80px" className="object-cover" onError={() => setImageErrors((prev) => ({ ...prev, [i]: true }))} />
+                      <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" onError={() => setImageErrors((prev) => ({ ...prev, [i]: true }))} />
                     )}
                   </button>
                 ))}
@@ -643,7 +641,7 @@ export function ListingFullView() {
                   {tp('form', 'phone')}
                 </Button>
               )}
-              {listing.contactMethod === 'whatsapp' && (
+              {listing.contactMethods?.includes('whatsapp') && (
                 <Button
                   variant="outline"
                   className="w-full gap-2"

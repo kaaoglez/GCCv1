@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    const { title, description, categoryId, tier, metadata, images, municipality, location, lat, lng, showPhone, showEmail, contactMethod } = validation.data;
+    const { title, description, categoryId, tier, metadata, images, municipality, location, lat, lng, contactMethods } = validation.data;
 
     // Verify category exists
     const category = await db.category.findUnique({
@@ -196,6 +196,11 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(now);
     expiresAt.setDate(expiresAt.getDate() + category.expiryDays);
 
+    // Compute showPhone / showEmail from selected contact methods
+    const methods = contactMethods && contactMethods.length > 0 ? contactMethods : ['message'];
+    const showPhone = methods.includes('phone') || methods.includes('whatsapp');
+    const showEmail = methods.includes('email') || methods.includes('message');
+
     // Build create DTO
     const createDTO: ListingCreateDTO = {
       title,
@@ -208,13 +213,14 @@ export async function POST(request: NextRequest) {
       location,
       lat,
       lng,
-      showPhone: showPhone ?? false,
-      showEmail: showEmail ?? true,
-      contactMethod: contactMethod || 'message',
+      showPhone,
+      showEmail,
+      contactMethods: methods,
     };
 
     const listing = await db.listing.create({
       data: {
+        id: crypto.randomUUID(),
         slug,
         title: createDTO.title,
         description: createDTO.description,
@@ -232,7 +238,7 @@ export async function POST(request: NextRequest) {
         publishedAt: new Date(),
         showPhone: createDTO.showPhone,
         showEmail: createDTO.showEmail,
-        contactMethod: createDTO.contactMethod,
+        contactMethod: JSON.stringify(createDTO.contactMethods),
       },
       include: {
         category: true,

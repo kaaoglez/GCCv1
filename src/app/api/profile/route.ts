@@ -182,3 +182,74 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+// DELETE /api/profile — close/delete own account
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+
+    // Verify password for security
+    const body = await request.json().catch(() => ({}));
+    const { password } = body as { password?: string };
+
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+    }
+
+    // Require password confirmation
+    if (!password || user.password !== password) {
+      return NextResponse.json(
+        { error: 'Contraseña incorrecta. Necesitas confirmar tu contraseña para eliminar la cuenta.' },
+        { status: 400 }
+      );
+    }
+
+    // Delete all related data (same logic as admin delete)
+    await db.payment.deleteMany({ where: { userId } });
+    await db.message.deleteMany({ where: { senderId: userId } });
+    await db.message.deleteMany({ where: { receiverId: userId } });
+    await db.favorite.deleteMany({ where: { userId } });
+
+    const userListingIds = (await db.listing.findMany({
+      where: { authorId: userId },
+      select: { id: true },
+    })).map((l) => l.id);
+    if (userListingIds.length > 0) {
+      await db.message.deleteMany({ where: { listingId: { in: userListingIds } } });
+      await db.payment.deleteMany({ where: { listingId: { in: userListingIds } } });
+    }
+    await db.listing.deleteMany({ where: { authorId: userId } });
+
+    const userFlyerIds = (await db.flyer.findMany({
+      where: { authorId: userId },
+      select: { id: true },
+    })).map((f) => f.id);
+    if (userFlyerIds.length > 0) {
+      await db.payment.deleteMany({ where: { flyerId: { in: userFlyerIds } } });
+    }
+    await db.flyer.deleteMany({ where: { authorId: userId } });
+
+    await db.article.deleteMany({ where: { authorId: userId } });
+    await db.event.deleteMany({ where: { authorId: userId } });
+
+    // Finally delete the user
+    await db.user.delete({ where: { id: userId } });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Tu cuenta ha sido eliminada correctamente.',
+    });
+  } catch (error) {
+    console.error('[DELETE /api/profile]', error);
+    return NextResponse.json(
+      { error: 'Error al eliminar la cuenta' },
+      { status: 500 }
+    );
+  }
+}

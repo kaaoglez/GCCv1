@@ -25,6 +25,8 @@ import {
   Crown,
   Shield,
   Megaphone,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,6 +128,7 @@ export function PerfilPage() {
   const [stats, setStats] = useState({ listings: 0, favorites: 0, messages: 0, flyers: 0 });
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Admin access hooks (must be before any early return)
   const { setAdminView } = useModalStore();
@@ -553,8 +556,8 @@ export function PerfilPage() {
             </button>
           </div>
 
-          {/* ── Logout ───────────────────────────────── */}
-          <div className="mt-6">
+          {/* ── Logout & Delete Account ───────────────── */}
+          <div className="mt-6 space-y-3">
             <Button
               variant="outline"
               className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
@@ -566,6 +569,15 @@ export function PerfilPage() {
             >
               <LogOut className="size-4" />
               {t('Cerrar sesión', 'Sign out', locale)}
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/5 gap-2 text-sm"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-3.5" />
+              {t('Eliminar mi cuenta', 'Delete my account', locale)}
             </Button>
           </div>
         </>
@@ -595,6 +607,20 @@ export function PerfilPage() {
             } else {
               update();
             }
+          }}
+        />
+      )}
+
+      {/* ── Delete Account Dialog ────────────────────── */}
+      {session && (
+        <DeleteAccountDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          locale={locale}
+          onDeleted={() => {
+            signOut({ redirect: false });
+            useModalStore.getState().setCurrentView('home');
+            window.scrollTo({ top: 0 });
           }}
         />
       )}
@@ -962,6 +988,143 @@ function EditProfileDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DELETE ACCOUNT DIALOG — password confirmation required
+// ═══════════════════════════════════════════════════════════════
+function DeleteAccountDialog({
+  open,
+  onOpenChange,
+  locale,
+  onDeleted,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  locale: string;
+  onDeleted: () => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<'warn' | 'confirm'>('warn');
+
+  useEffect(() => {
+    if (open) {
+      setPassword('');
+      setStep('warn');
+    }
+  }, [open]);
+
+  const handleDelete = async () => {
+    if (!password.trim()) {
+      toast.error(t('Introduce tu contraseña', 'Enter your password', locale));
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password.trim() }),
+      });
+      if (res.ok) {
+        toast.success(t('Cuenta eliminada correctamente', 'Account deleted successfully', locale));
+        onOpenChange(false);
+        onDeleted();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || t('Error al eliminar la cuenta', 'Failed to delete account', locale));
+      }
+    } catch {
+      toast.error('Error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="size-5" />
+            {t('Eliminar mi cuenta', 'Delete my account', locale)}
+          </DialogTitle>
+        </DialogHeader>
+
+        {step === 'warn' ? (
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p className="text-sm text-destructive font-medium">
+                {t(
+                  'Esta acción es permanente e irreversible.',
+                  'This action is permanent and irreversible.',
+                  locale
+                )}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                'Se eliminarán todos tus datos: anuncios, mensajes, favoritos, folletos y tu perfil. Esta acción NO se puede deshacer.',
+                'All your data will be deleted: listings, messages, favorites, flyers and your profile. This action CANNOT be undone.',
+                locale
+              )}
+            </p>
+            <Button
+              variant="destructive"
+              className="w-full gap-2"
+              onClick={() => setStep('confirm')}
+            >
+              <AlertTriangle className="size-4" />
+              {t('Entiendo, continuar', 'I understand, continue', locale)}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-destructive">
+              {t('Introduce tu contraseña para confirmar:', 'Enter your password to confirm:', locale)}
+            </p>
+            <div className="relative">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pr-10"
+                onKeyDown={(e) => e.key === 'Enter' && handleDelete()}
+              />
+              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'Tu contraseña se verifica por seguridad antes de eliminar la cuenta.',
+                'Your password is verified for security before deleting the account.',
+                locale
+              )}
+            </p>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            {t('Cancelar', 'Cancel', locale)}
+          </Button>
+          {step === 'confirm' && (
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading || !password.trim()}
+              className="gap-2"
+            >
+              {loading && <Loader2 className="size-4 animate-spin" />}
+              <Trash2 className="size-4" />
+              {t('Eliminar cuenta', 'Delete account', locale)}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

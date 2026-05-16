@@ -2,16 +2,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { adminUpdateUserSchema, validateBody } from '@/lib/validations';
 import type { PaginatedResponse } from '@/lib/types';
+import { Prisma } from '@prisma/client';
 
-// GET /api/admin/users?page=&limit=
+// GET /api/admin/users?page=&limit=&search=&role=
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
+    const search = searchParams.get('search')?.trim() || '';
+    const roleFilter = searchParams.get('role')?.trim() || '';
+
+    // Build where clause with search and role filters
+    const where: Prisma.UserWhereInput = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { businessName: { contains: search } },
+      ];
+    }
+    if (roleFilter) {
+      where.role = roleFilter;
+    }
 
     const [users, total] = await Promise.all([
       db.user.findMany({
+        where: Object.keys(where).length > 0 ? where : undefined,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -19,7 +36,9 @@ export async function GET(request: NextRequest) {
           _count: { select: { listings: true } },
         },
       }),
-      db.user.count(),
+      db.user.count({
+        where: Object.keys(where).length > 0 ? where : undefined,
+      }),
     ]);
 
     const data = users.map((u) => ({

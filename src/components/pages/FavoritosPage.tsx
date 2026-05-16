@@ -27,7 +27,7 @@ import { navigateBack, navigateTo } from '@/hooks/use-navigation';
 import { useModalStore } from '@/lib/modal-store';
 import { formatPrice, getRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 import { toast } from 'sonner';
 import type { ListingDTO } from '@/lib/types';
 
@@ -214,7 +214,7 @@ export function FavoritosPage() {
                       {/* Image */}
                       <div className="relative w-full sm:w-40 h-32 sm:h-auto bg-muted flex-shrink-0">
                         {image ? (
-                          <Image src={image} alt={listing.title} fill className="object-cover" sizes="160px" />
+                          <img src={image} alt={listing.title} className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                             <ImageOff className="size-8 opacity-30" />

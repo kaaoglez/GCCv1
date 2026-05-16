@@ -1,5 +1,177 @@
 # Gran Canaria Conecta - Worklog
 
+## Phase 13: Fix updatedAt Missing on All Models
+
+**Date**: Current session
+**Description**: Fixed "Argument `updatedAt` is missing" error when creating listings (and potentially any other model). The Prisma schema had `updatedAt DateTime` without `@updatedAt` on 4 models: Flyer, FlyerPlan, RecyclingPoint, and User.
+
+### Root Cause
+- Prisma schema field `updatedAt DateTime` (without `@updatedAt`) requires an explicit value on every `create()` call
+- If the API route doesn't include `updatedAt: new Date()` in the data object, Prisma throws "Argument `updatedAt` is missing"
+- Previous phases had already fixed 6 models (Article, Category, CommunityStat, Event, Listing, Payment) but 4 were still missing
+
+### Fix — `prisma/schema.prisma`
+Added `@updatedAt` to the remaining 4 models:
+- **Flyer**: `updatedAt DateTime` → `updatedAt DateTime @updatedAt`
+- **FlyerPlan**: `updatedAt DateTime` → `updatedAt DateTime @updatedAt`
+- **RecyclingPoint**: `updatedAt DateTime` → `updatedAt DateTime @updatedAt`
+- **User**: `updatedAt DateTime` → `updatedAt DateTime @updatedAt`
+
+### Effect
+- `@updatedAt` tells Prisma to automatically set the field to `now()` on both CREATE and UPDATE operations
+- No code changes needed in API routes — existing `updatedAt: new Date()` calls are harmless (redundant but not conflicting)
+- All 10 models with `updatedAt` now have `@updatedAt` — future create calls for any model will auto-set the timestamp
+
+---
+
+## Phase 12: Listing Creation Fix + Multiple Contact Methods
+
+**Date**: Current session
+**Description**: Fixed critical "no guarda el anuncio" bug (missing `id` field in listing create), enabled multiple contact methods via checkboxes, and confirmed admin categories grid CRUD already works.
+
+### 1. Listing Creation Fix — `/src/app/api/listings/route.ts`
+- **Bug**: Prisma schema `Listing.id String @id` has no default, but `db.listing.create()` didn't provide `id`
+- **Error**: `Argument 'id' is missing` when trying to create a listing
+- **Fix**: Added `id: crypto.randomUUID()` to the create data object
+
+### 2. Multiple Contact Methods
+Changed contact method from single-select to multi-select checkboxes (message, phone, email, whatsapp).
+
+#### Schema — `prisma/schema.prisma` (unchanged)
+- `contactMethod` stays as `String` in DB, now stores JSON array like `["message","phone"]`
+
+#### Validation — `/src/lib/validations.ts`
+- `contactMethod` → `contactMethods: z.array(z.enum([...]))`
+
+#### Types — `/src/lib/types.ts`
+- `ListingDTO.contactMethod: ContactMethod` → `contactMethods: ContactMethod[]`
+- `ListingCreateDTO.contactMethod: ContactMethod` → `contactMethods: ContactMethod[]`
+
+#### Mapper — `/src/lib/map-listing.ts`
+- Added `parseContactMethods(raw)` helper — handles both legacy single-string (`"message"`) and new JSON-array (`["message","phone"]`) formats
+- Returns `ContactMethod[]` with fallback to `['message']`
+
+#### API — `/src/app/api/listings/route.ts`
+- Accepts `contactMethods` array from frontend
+- Computes `showPhone` and `showEmail` from selected methods
+- Stores as `JSON.stringify(contactMethods)` in DB
+
+#### API — `/src/app/api/listings/[id]/route.ts`
+- PUT handler accepts `contactMethods` array
+- Stores as JSON, recomputes showPhone/showEmail
+
+#### PostAdPage — `/src/components/pages/PostAdPage.tsx`
+- Replaced `<Select>` dropdown with 2x2 checkbox grid
+- Each method: emoji icon + label, toggle on/off with visual feedback
+- Label: "Método de contacto preferido (puedes seleccionar varias)"
+
+#### PostAdModal — `/src/components/modals/PostAdModal.tsx`
+- Same checkbox UI as PostAdPage
+
+#### ListingFullView — `/src/components/modals/ListingFullView.tsx`
+- WhatsApp button: `listing.contactMethod === 'whatsapp'` → `listing.contactMethods?.includes('whatsapp')`
+
+### 3. Admin Categories — Already Working ✅
+- Grid layout: `grid-cols-2 md:grid-cols-3 xl:grid-cols-4` cards
+- Create, edit, delete, search, toggle active/paid — all functional
+- No changes needed
+
+### 4. User Section Buttons — Already Working ✅
+- MisAnunciosPage uses `openPostAdPage()` (full page) — not popup
+
+### ZIP Updated
+- `public/gccv1-fix.zip` — 230 files, 640KB
+
+---
+
+## Phase 11: Publish Fix + Admin Categories Grid CRUD
+
+**Date**: Current session
+**Description**: Fixed ad publishing flow (broken after payment modal), fixed all "Publicar anuncio" buttons to use full page, and completely rewrote admin categories panel as grid with create/delete/edit.
+
+### 1. Ad Publishing Flow Fix — `/src/components/pages/PostAdPage.tsx`
+- **Bug**: When user selected HIGHLIGHTED/VIP tier on a normal category, clicking "Publish" opened payment modal but never submitted the listing after payment closed
+- **Fix**: Added `pendingTierPayment` ref that tracks pending tier payment. When payment modal closes, `useEffect` detects it and auto-calls `submitListing()`
+- Also fixed paid category flow: after payment confirmation in step 1, now auto-advances to step 2 (details)
+- Extracted `submitListing()` as reusable function called by both direct submit and post-payment submit
+
+### 2. All "Publicar anuncio" Buttons → Full Page — `/src/components/pages/MisAnunciosPage.tsx`
+- **Bug**: 2 buttons in MisAnunciosPage used old `openPostAd()` (modal popup) instead of `openPostAdPage()` (full page)
+- **Fix**: Both buttons now call `openPostAdPage()` with auth guard (opens login if not authenticated)
+- Navbar and HeroSection already used `openPostAdPage()` ✅
+
+### 3. Admin Categories — Complete Grid CRUD Rewrite
+
+#### API — `/src/app/api/admin/categories/route.ts`
+- **POST** `/api/admin/categories` — Create new category with all fields, auto-generates slug
+- **DELETE** `/api/admin/categories?id=xxx` — Delete category (validates: no children, no listings)
+- PUT already existed (unchanged)
+
+#### Validation — `/src/lib/validations.ts`
+- Added `adminCreateCategorySchema` with all required/optional fields
+
+#### Component — `/src/components/admin/AdminCategories.tsx` (1012 lines, complete rewrite)
+- **Grid layout**: `grid-cols-2 md:grid-cols-3 xl:grid-cols-4` responsive cards
+- **Stats bar**: Total, free, paid, revenue counts
+- **Toolbar**: Search + "Nueva categoría" button
+- **Category cards**: Icon with colored bg, name (ES+EN), paid/active badges, listing count, revenue, children as pills
+- **Create Dialog**: Full form (name, icon, color, parent, order, expiry, display toggles, payment settings)
+- **Edit Dialog**: Same form pre-populated + stats section
+- **Delete Confirmation**: AlertDialog with safety checks (disabled if has children/listings)
+- **Inline actions**: isPaid toggle, active toggle, edit, delete per card
+
+### ZIP Updated
+- `public/gccv1-fix.zip` — 228 files, 393KB
+
+---
+
+## Phase 10: Image Display Fix — Complete next/image Migration
+
+**Date**: Current session
+**Description**: Fixed image display issues across the entire application. Images for new ads, admin thumbnails, and all listing/event/article cards were not rendering due to `next/image` optimization API failures through the Caddy reverse proxy. Migrated ALL image rendering to native `<img>` tags for maximum reliability.
+
+### Root Cause
+- `next/image` component in Next.js 16 uses an internal optimization API (`/_next/image?url=...&w=...`) that was failing through the Caddy reverse proxy setup
+- Images appeared broken/blank even though the source URLs were valid
+- Affected: ListingCard, ListingFullView, ListingDetailModal, MisAnunciosPage, FavoritosPage, EventCard, ArticleCard, EventDetailModal, ArticleDetailModal, MessageModal, and admin thumbnails
+
+### Solution: Native `<img>` tags everywhere
+
+#### 1. `/next.config.ts`
+- Added `images: { unoptimized: true }` — disables Next.js image optimization API globally (belt-and-suspenders approach)
+- Added `plus.unsplash.com` to `remotePatterns` for broader Unsplash CDN coverage
+
+#### 2. Image Component Migration (10 files)
+All `<Image>` (next/image) components replaced with native `<img>`:
+- `src/components/shared/ListingCard.tsx` — Main listing card image
+- `src/components/shared/EventCard.tsx` — Event card image
+- `src/components/shared/ArticleCard.tsx` — Article card image
+- `src/components/modals/ListingDetailModal.tsx` — Listing detail popup
+- `src/components/modals/ListingFullView.tsx` — Full listing view (main + thumbnails)
+- `src/components/modals/EventDetailModal.tsx` — Event detail
+- `src/components/modals/ArticleDetailModal.tsx` — Article detail
+- `src/components/modals/MessageModal.tsx` — Message listing preview
+- `src/components/pages/MisAnunciosPage.tsx` — My ads page
+- `src/components/pages/FavoritosPage.tsx` — Favorites page
+
+Pattern: `<Image src={...} fill sizes="..." className="object-cover" />` → `<img src={...} className="absolute inset-0 w-full h-full object-cover" />`
+
+#### 3. Upload Route Fix — `/src/app/api/upload/route.ts`
+- Added `purpose: 'listing'` support with 5MB max size (vs 2MB for avatars)
+- Added `getPrefix('listing')` → `'listing'` prefix (was incorrectly using `'avatar'` for listing images)
+- New filenames: `listing-{userId}-{timestamp}.jpg` instead of `avatar-{userId}-{timestamp}.jpg`
+
+#### 4. PostAdPage Fix — `/src/components/pages/PostAdPage.tsx`
+- Upload now sends `formData.append('purpose', 'listing')` so images get correct prefix
+
+### Verification
+- ESLint: 0 new errors (only pre-existing `setup.js` issues)
+- No remaining `import Image from 'next/image'` in codebase
+- No remaining `<Image` JSX tags in codebase
+- Admin thumbnails already used native `<img>` (unchanged, confirmed working)
+
+---
+
 ## Phase 8: Color Contrast Fixes
 
 **Date**: Session 8
@@ -752,3 +924,41 @@ Instead of fighting CSS specificity, use `useEffect` to literally remove the `da
 - ESLint passes for all new/modified files (only pre-existing setup.js errors remain)
 - All navigation works via Zustand state — no route changes needed
 - API calls confirmed working: `/api/listings?limit=12&sortBy=newest` and `/api/categories?locale=es` return 200
+---
+Task ID: 1
+Agent: Main Agent
+Task: Investigar y verificar funcionalidad de borrar cuentas de usuarios (admin + self-delete)
+
+Work Log:
+- Investigué el código existente y encontré que AMBAS funcionalidades ya estaban implementadas:
+  - Admin delete user: AdminUsers.tsx tiene botón Trash2 + dialog de 2 pasos + API DELETE /api/admin/users/[id]
+  - User self-delete: PerfilPage.tsx tiene botón "Eliminar mi cuenta" + DeleteAccountDialog + API DELETE /api/profile
+- Verifiqué la base de datos: 12 usuarios existen correctamente
+- Identifiqué el problema de "usuarios desaparecidos": cuando la cookie de admin expira (24h), el middleware devuelve 401 y el componente mostraba lista vacía sin explicación
+- Agregué manejo de errores en AdminUsers.tsx: ahora muestra mensaje de error cuando la API falla (ej: sesión expirada) con botón de reintentar
+- Mejoré el API GET /api/admin/users para soportar búsqueda (search) y filtro por rol (role) que el frontend enviaba pero el backend ignoraba
+
+Stage Summary:
+- Admin delete users: ya funcionaba, no se requirió cambios
+- User self-delete: ya funcionaba, no se requirió cambios
+- Archivo modificado: src/components/admin/AdminUsers.tsx (manejo de errores + apiError state)
+- Archivo modificado: src/app/api/admin/users/route.ts (soporte search + role filter)
+- Todos los endpoints verificados y funcionando
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Corregir error "Cannot destructure property 'id' of params" en API admin users
+
+Work Log:
+- El error era: `TypeError: Cannot destructure property 'id' of '(intermediate value)' as it is undefined` en Next.js 16
+- Causa: En Next.js 16, el `params` prop de los route handlers dinámicos puede devolver `undefined` dependiendo de la versión exacta
+- Solución: Reemplacé el uso de `params` con una función helper `extractId(request)` que extrae el ID directamente del URL usando `request.nextUrl.pathname`
+- Esto hace que el código funcione independientemente de cómo Next.js maneje los params
+- Todos los 3 handlers (GET, PUT, DELETE) en [id]/route.ts fueron actualizados
+- route.ts (listado) no usaba params y está correcto
+
+Stage Summary:
+- Archivo modificado: src/app/api/admin/users/[id]/route.ts — eliminada dependencia de params, ahora usa extractId(request)
+- Archivo sin cambios: src/app/api/admin/users/route.ts — ya era correcto
+- Archivo previamente modificado: src/components/admin/AdminUsers.tsx — mejoras de manejo de errores (apiError state)

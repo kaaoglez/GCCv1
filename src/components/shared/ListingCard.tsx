@@ -14,7 +14,7 @@ import { useI18n } from '@/hooks/use-i18n';
 import { useFavoriteToggle } from '@/hooks/use-favorite-toggle';
 import { formatPrice, getRelativeTime, truncateText } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+// Using native <img> for maximum reliability across proxy setups
 import { useModalStore } from '@/lib/modal-store';
 import { useSession } from 'next-auth/react';
 import { MapPin, ShieldCheck, ImageOff, Heart } from 'lucide-react';
@@ -83,12 +83,11 @@ export function ListingCard({ listing, className, onClick }: ListingCardProps) {
         {/* Image */}
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
           {image ? (
-            <Image
+            <img
               src={image}
               alt={listing.title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted-foreground">

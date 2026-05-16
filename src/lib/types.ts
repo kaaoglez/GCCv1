@@ -258,7 +258,7 @@ export interface ListingDTO {
   contactCount: number;
   showPhone: boolean;
   showEmail: boolean;
-  contactMethod: ContactMethod;
+  contactMethods: ContactMethod[];
   createdAt: string;
   updatedAt: string;
   // Computed
@@ -279,7 +279,7 @@ export interface ListingCreateDTO {
   lng?: number;
   showPhone: boolean;
   showEmail: boolean;
-  contactMethod: ContactMethod;
+  contactMethods: ContactMethod[];
 }
 
 export interface EventDTO {

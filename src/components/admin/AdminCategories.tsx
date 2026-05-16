@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { getIcon } from '@/lib/icons';
+import { ICON_LIST } from '@/lib/icons';
 import {
   Pencil,
   Search,
-  ChevronDown,
-  ChevronRight,
   DollarSign,
   Save,
   X,
@@ -20,20 +19,36 @@ import {
   Eye,
   EyeOff,
   Package,
-  Check,
   Loader2,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { CategoryDTO } from '@/lib/types';
 
 interface AdminCategoryDTO extends CategoryDTO {
@@ -41,34 +56,339 @@ interface AdminCategoryDTO extends CategoryDTO {
   children?: AdminCategoryDTO[];
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Default form values for create / edit
+// ═══════════════════════════════════════════════════════════════
+const DEFAULT_FORM = {
+  nameEs: '',
+  nameEn: '',
+  icon: '',
+  color: '#6366f1',
+  isActive: true,
+  isPaid: false,
+  price: null as number | null,
+  sortOrder: 0,
+  expiryDays: 30,
+  maxImages: 5,
+  showPrice: true,
+  showLocation: true,
+  showImages: true,
+  parentId: null as string | null,
+};
+
+type CategoryForm = typeof DEFAULT_FORM;
+
+// ═══════════════════════════════════════════════════════════════
+// Shared category form used in both Create & Edit dialogs
+// ═══════════════════════════════════════════════════════════════
+function CategoryFormFields({
+  form,
+  setForm,
+  locale,
+  parentOptions,
+  isCreate,
+}: {
+  form: CategoryForm;
+  setForm: React.Dispatch<React.SetStateAction<CategoryForm>>;
+  locale: string;
+  parentOptions: { id: string; nameEs: string; nameEn: string }[];
+  isCreate: boolean;
+}) {
+  const L = (es: string, en: string) => (locale === 'es' ? es : en);
+
+  return (
+    <div className="space-y-5">
+      {/* ── Names ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Nombre (ES) *</Label>
+          <Input
+            value={form.nameEs}
+            onChange={(e) => setForm((f) => ({ ...f, nameEs: e.target.value }))}
+            placeholder="Ej: Vehículos"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Nombre (EN) *</Label>
+          <Input
+            value={form.nameEn}
+            onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+            placeholder="Eg: Vehicles"
+          />
+        </div>
+      </div>
+
+      {/* ── Parent (create only, optional) ── */}
+      {isCreate && parentOptions.length > 0 && (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            {L('Categoría padre (opcional)', 'Parent category (optional)')}
+          </Label>
+          <select
+            value={form.parentId ?? ''}
+            onChange={(e) => setForm((f) => ({ ...f, parentId: e.target.value || null }))}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">— {L('Raíz (sin padre)', 'Root (no parent)')} —</option>
+            {parentOptions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {locale === 'es' ? p.nameEs : p.nameEn}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ── Icon & Color ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Icono</Label>
+          <div className="flex items-center gap-2">
+            {form.icon && (
+              <div
+                className="flex items-center justify-center size-9 rounded-lg shrink-0"
+                style={{ backgroundColor: form.color + '20', color: form.color }}
+              >
+                {getIcon(form.icon, undefined, 18)}
+              </div>
+            )}
+            <Select
+              value={form.icon}
+              onValueChange={(val) => setForm((f) => ({ ...f, icon: val }))}
+            >
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Seleccionar icono" />
+              </SelectTrigger>
+              <SelectContent className="max-h-64 overflow-y-auto">
+                {ICON_LIST.map((icon) => (
+                  <SelectItem key={icon.value} value={icon.value}>
+                    <span className="flex items-center gap-2">
+                      {getIcon(icon.value, undefined, 16)}
+                      <span>{icon.label}</span>
+                      <span className="text-muted-foreground text-xs ml-1">{icon.value}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">Color</Label>
+          <div className="flex gap-2">
+            <Input
+              value={form.color}
+              onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+              placeholder="#6366f1"
+            />
+            <div
+              className="w-10 h-10 rounded-lg border shrink-0"
+              style={{ backgroundColor: form.color }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Order, Expiry, Max Images ── */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{L('Orden', 'Order')}</Label>
+          <Input
+            type="number"
+            value={form.sortOrder}
+            onChange={(e) => setForm((f) => ({ ...f, sortOrder: parseInt(e.target.value) || 0 }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{L('Días expiración', 'Expiry days')}</Label>
+          <Input
+            type="number"
+            value={form.expiryDays}
+            onChange={(e) => setForm((f) => ({ ...f, expiryDays: parseInt(e.target.value) || 30 }))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">{L('Max imágenes', 'Max images')}</Label>
+          <Input
+            type="number"
+            value={form.maxImages}
+            onChange={(e) => setForm((f) => ({ ...f, maxImages: parseInt(e.target.value) || 5 }))}
+          />
+        </div>
+      </div>
+
+      {/* ── Display settings ── */}
+      <div className="space-y-3 p-3 rounded-lg bg-muted/40 border">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {L('Configuración de visualización', 'Display settings')}
+        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Tag className="size-3.5 text-muted-foreground" />
+            <Label className="text-sm">{L('Mostrar precio', 'Show price')}</Label>
+          </div>
+          <Switch checked={form.showPrice} onCheckedChange={(v) => setForm((f) => ({ ...f, showPrice: v }))} />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Tag className="size-3.5 text-muted-foreground" />
+            <Label className="text-sm">{L('Mostrar ubicación', 'Show location')}</Label>
+          </div>
+          <Switch checked={form.showLocation} onCheckedChange={(v) => setForm((f) => ({ ...f, showLocation: v }))} />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ImagePlus className="size-3.5 text-muted-foreground" />
+            <Label className="text-sm">{L('Mostrar imágenes', 'Show images')}</Label>
+          </div>
+          <Switch checked={form.showImages} onCheckedChange={(v) => setForm((f) => ({ ...f, showImages: v }))} />
+        </div>
+      </div>
+
+      {/* ── Active toggle ── */}
+      <div className="flex items-center justify-between p-3 rounded-lg border">
+        <div className="flex items-center gap-2">
+          {form.isActive ? (
+            <Eye className="size-4 text-emerald-600" />
+          ) : (
+            <EyeOff className="size-4 text-muted-foreground" />
+          )}
+          <Label className="text-sm">{L('Categoría activa', 'Active category')}</Label>
+        </div>
+        <Switch checked={form.isActive} onCheckedChange={(v) => setForm((f) => ({ ...f, isActive: v }))} />
+      </div>
+
+      <Separator />
+
+      {/* ── Payment section ── */}
+      <div
+        className={`space-y-3 p-4 rounded-xl border-2 transition-colors ${
+          form.isPaid
+            ? 'border-amber-300 bg-amber-50'
+            : 'border-border'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign className={`size-5 ${form.isPaid ? 'text-amber-600' : 'text-muted-foreground'}`} />
+            <div>
+              <Label className="text-sm font-semibold">{L('Categoría de pago', 'Paid category')}</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {L(
+                  'El usuario deberá pagar para publicar en esta categoría',
+                  'User must pay to publish in this category',
+                )}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={form.isPaid}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, isPaid: v, price: v ? (f.price || 5) : null }))}
+          />
+        </div>
+
+        {form.isPaid && (
+          <div className="pt-3 border-t border-amber-200 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-amber-700">
+                {L('Precio de publicación (€)', 'Publication price (€)')}
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-muted-foreground">
+                  €
+                </span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.price ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || null }))}
+                  placeholder="0.00"
+                  className="h-12 pl-9 text-lg font-bold"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-100/60">
+              <Clock className="size-4 text-amber-600 shrink-0" />
+              <p className="text-xs text-amber-700">
+                {L(
+                  'Puedes activar/desactivar el pago según tus campañas. Si desactivas, la categoría vuelve a ser gratuita automáticamente.',
+                  'You can enable/disable payment based on your campaigns. Disabling makes the category free automatically.',
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main component
+// ═══════════════════════════════════════════════════════════════
 export function AdminCategories() {
   const { tp, locale } = useI18n();
+  const L = (es: string, en: string) => (locale === 'es' ? es : en);
+
+  // ── State ──
   const [categories, setCategories] = useState<AdminCategoryDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+
+  // Dialogs
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CategoryForm>({ ...DEFAULT_FORM });
   const [editCat, setEditCat] = useState<AdminCategoryDTO | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, any>>({});
+  const [editForm, setEditForm] = useState<CategoryForm>({ ...DEFAULT_FORM });
+  const [deleteCat, setDeleteCat] = useState<AdminCategoryDTO | null>(null);
+
+  // Loading / error
   const [actionLoading, setActionLoading] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
-  const [priceDraft, setPriceDraft] = useState('');
 
-  // Stats
+  // ── Stats ──
   const totalCategories = useMemo(() => {
     let count = categories.length;
-    categories.forEach((p) => { count += (p.children || []).length; });
+    categories.forEach((p) => {
+      count += (p.children || []).length;
+    });
     return count;
   }, [categories]);
+
   const paidCategories = useMemo(() => {
     let count = categories.filter((c) => c.isPaid).length;
-    categories.forEach((p) => { count += (p.children || []).filter((c) => c.isPaid).length; });
+    categories.forEach((p) => {
+      count += (p.children || []).filter((c) => c.isPaid).length;
+    });
     return count;
   }, [categories]);
+
   const freeCategories = totalCategories - paidCategories;
 
-  // Fetch categories on mount
+  const totalRevenue = useMemo(
+    () =>
+      categories.reduce(
+        (sum, p) =>
+          sum + (p.revenue || 0) + (p.children || []).reduce((s, c) => s + (c.revenue || 0), 0),
+        0,
+      ),
+    [categories],
+  );
+
+  // ── Fetch categories ──
+  const refetch = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/categories');
+      const data = await res.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch {
+      /* silent */
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -77,157 +397,99 @@ export function AdminCategories() {
         const res = await fetch('/api/admin/categories');
         const data = await res.json();
         if (!cancelled) setCategories(Array.isArray(data) ? data : []);
-      } catch { /* silent */ }
+      } catch {
+        /* silent */
+      }
       if (!cancelled) setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const parents = useMemo(
-    () => categories.sort((a, b) => a.sortOrder - b.sortOrder),
-    [categories]
+  // ── Parent options for create dialog ──
+  const parentOptions = useMemo(
+    () =>
+      categories
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((p) => ({ id: p.id, nameEs: p.nameEs, nameEn: p.nameEn })),
+    [categories],
+  );
+
+  // ── Filtered parents ──
+  const sortedParents = useMemo(
+    () => [...categories].sort((a, b) => a.sortOrder - b.sortOrder),
+    [categories],
   );
 
   const filteredParents = useMemo(() => {
-    if (!search.trim()) return parents;
+    if (!search.trim()) return sortedParents;
     const q = search.toLowerCase();
-    return parents.filter((p) => {
+    return sortedParents.filter((p) => {
       const nameMatch = p.nameEs.toLowerCase().includes(q) || p.nameEn.toLowerCase().includes(q);
       const childMatch = (p.children || []).some(
-        (c) => c.nameEs.toLowerCase().includes(q) || c.nameEn.toLowerCase().includes(q)
+        (c) => c.nameEs.toLowerCase().includes(q) || c.nameEn.toLowerCase().includes(q),
       );
       return nameMatch || childMatch;
     });
-  }, [parents, search]);
+  }, [sortedParents, search]);
 
-  const toggleParent = (id: string) => {
-    setExpandedParents((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // ── Helper: update a category in local state ──
+  const updateCategoryInState = (id: string, patch: Partial<AdminCategoryDTO>) => {
+    setCategories((prev) =>
+      prev.map((p) => {
+        if (p.id === id) return { ...p, ...patch };
+        const children = p.children?.map((c) => (c.id === id ? { ...c, ...patch } : c));
+        return children ? { ...p, children } : p;
+      }),
+    );
   };
 
-  const expandAll = () => {
-    setExpandedParents(new Set(parents.map((p) => p.id)));
-  };
+  // ═══════════════════════════════════════════════════════════
+  // Actions
+  // ═══════════════════════════════════════════════════════════
 
-  const collapseAll = () => {
-    setExpandedParents(new Set());
-  };
-
-  // Toggle isPaid with API call
+  // ── Toggle isPaid ──
   const toggleIsPaid = async (cat: AdminCategoryDTO) => {
     const newVal = !cat.isPaid;
     setTogglingId(cat.id);
-
-    // If turning ON and no price, set default price
-    const updatePayload: Record<string, any> = { id: cat.id, isPaid: newVal };
-    if (newVal && !cat.price) {
-      updatePayload.price = 5;
-    }
-
-    // Optimistic update
-    setCategories((prev) =>
-      prev.map((p) => {
-        if (p.id === cat.id) return { ...p, isPaid: newVal, price: newVal && !cat.price ? 5 : cat.price };
-        const children = p.children?.map((c) => {
-          if (c.id === cat.id) return { ...c, isPaid: newVal, price: newVal && !cat.price ? 5 : cat.price };
-          return c;
-        });
-        return children ? { ...p, children } : p;
-      })
-    );
+    const patch: Partial<AdminCategoryDTO> = {
+      isPaid: newVal,
+      price: newVal && !cat.price ? 5 : cat.price,
+    };
+    updateCategoryInState(cat.id, patch);
 
     try {
       const res = await fetch('/api/admin/categories', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload),
+        body: JSON.stringify({ id: cat.id, ...patch }),
       });
       if (!res.ok) {
-        // Revert on error
-        setCategories((prev) =>
-          prev.map((p) => {
-            if (p.id === cat.id) return { ...p, isPaid: !newVal };
-            const children = p.children?.map((c) => {
-              if (c.id === cat.id) return { ...c, isPaid: !newVal };
-              return c;
-            });
-            return children ? { ...p, children } : p;
-          })
-        );
+        updateCategoryInState(cat.id, { isPaid: !newVal, price: cat.price });
       }
     } catch {
-      setCategories((prev) =>
-        prev.map((p) => {
-          if (p.id === cat.id) return { ...p, isPaid: !newVal };
-          const children = p.children?.map((c) => {
-            if (c.id === cat.id) return { ...c, isPaid: !newVal };
-            return c;
-          });
-          return children ? { ...p, children } : p;
-        })
-      );
+      updateCategoryInState(cat.id, { isPaid: !newVal, price: cat.price });
     }
     setTogglingId(null);
   };
 
-  // Save price inline
-  const savePrice = async (cat: AdminCategoryDTO) => {
-    const numPrice = parseFloat(priceDraft);
-    if (isNaN(numPrice) || numPrice < 0) {
-      setEditingPriceId(null);
-      return;
-    }
-    setActionLoading(true);
-    try {
-      const res = await fetch('/api/admin/categories', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: cat.id, price: numPrice }),
-      });
-      if (res.ok) {
-        setCategories((prev) =>
-          prev.map((p) => {
-            if (p.id === cat.id) return { ...p, price: numPrice };
-            const children = p.children?.map((c) => {
-              if (c.id === cat.id) return { ...c, price: numPrice };
-              return c;
-            });
-            return children ? { ...p, children } : p;
-          })
-        );
-      }
-    } catch { /* silent */ }
-    setEditingPriceId(null);
-    setActionLoading(false);
-  };
-
-  // Toggle isActive
+  // ── Toggle isActive ──
   const toggleIsActive = async (cat: AdminCategoryDTO) => {
     const newVal = !cat.isActive;
-    setCategories((prev) =>
-      prev.map((p) => {
-        if (p.id === cat.id) return { ...p, isActive: newVal };
-        const children = p.children?.map((c) => {
-          if (c.id === cat.id) return { ...c, isActive: newVal };
-          return c;
-        });
-        return children ? { ...p, children } : p;
-      })
-    );
+    updateCategoryInState(cat.id, { isActive: newVal });
     try {
       await fetch('/api/admin/categories', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: cat.id, isActive: newVal }),
       });
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
-  // Edit dialog
+  // ── Open edit ──
   const openEdit = (cat: AdminCategoryDTO) => {
     setSaveError('');
     setEditCat(cat);
@@ -238,24 +500,89 @@ export function AdminCategories() {
       color: cat.color,
       isActive: cat.isActive,
       isPaid: cat.isPaid,
-      price: cat.price ?? '',
-      highlightPrice: cat.highlightPrice || '',
-      vipPrice: cat.vipPrice || '',
+      price: cat.price ?? null,
       sortOrder: cat.sortOrder,
       expiryDays: cat.expiryDays,
       maxImages: cat.maxImages,
       showPrice: cat.showPrice,
       showLocation: cat.showLocation,
       showImages: cat.showImages,
+      parentId: null,
     });
   };
 
+  // ── Open create ──
+  const openCreate = () => {
+    setSaveError('');
+    setCreateForm({ ...DEFAULT_FORM });
+    setCreateOpen(true);
+  };
+
+  // ── Handle create save ──
+  const handleCreate = async () => {
+    if (!createForm.nameEs.trim() || !createForm.nameEn.trim()) {
+      setSaveError(L('Nombre ES y EN son obligatorios', 'Name ES and EN are required'));
+      return;
+    }
+    setActionLoading(true);
+    setSaveError('');
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nameEs: createForm.nameEs,
+          nameEn: createForm.nameEn,
+          icon: createForm.icon || undefined,
+          color: createForm.color,
+          parentId: createForm.parentId || undefined,
+          sortOrder: createForm.sortOrder,
+          expiryDays: createForm.expiryDays,
+          maxImages: createForm.maxImages,
+          isPaid: createForm.isPaid,
+          price: createForm.isPaid ? createForm.price : undefined,
+          showPrice: createForm.showPrice,
+          showLocation: createForm.showLocation,
+          showImages: createForm.showImages,
+          isActive: createForm.isActive,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSaveError(data?.error || L('Error al crear categoría', 'Error creating category'));
+        setActionLoading(false);
+        return;
+      }
+      setCreateOpen(false);
+      await refetch();
+    } catch {
+      setSaveError(L('Error de conexión', 'Connection error'));
+    }
+    setActionLoading(false);
+  };
+
+  // ── Handle edit save ──
   const handleSave = async () => {
     if (!editCat) return;
     setActionLoading(true);
     setSaveError('');
     try {
-      const payload = { id: editCat.id, ...editForm };
+      const payload = {
+        id: editCat.id,
+        nameEs: editForm.nameEs,
+        nameEn: editForm.nameEn,
+        icon: editForm.icon,
+        color: editForm.color,
+        isActive: editForm.isActive,
+        isPaid: editForm.isPaid,
+        price: editForm.isPaid ? editForm.price : null,
+        sortOrder: editForm.sortOrder,
+        expiryDays: editForm.expiryDays,
+        maxImages: editForm.maxImages,
+        showPrice: editForm.showPrice,
+        showLocation: editForm.showLocation,
+        showImages: editForm.showImages,
+      };
       const res = await fetch('/api/admin/categories', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -263,23 +590,44 @@ export function AdminCategories() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setSaveError(data?.error || 'Error al guardar');
+        setSaveError(data?.error || L('Error al guardar', 'Error saving'));
         setActionLoading(false);
         return;
       }
       setEditCat(null);
-      // Re-fetch to get updated data
-      try {
-        const refetch = await fetch('/api/admin/categories');
-        const refetchData = await refetch.json();
-        setCategories(Array.isArray(refetchData) ? refetchData : []);
-      } catch { /* silent */ }
+      await refetch();
     } catch {
-      setSaveError('Error de conexión');
+      setSaveError(L('Error de conexión', 'Connection error'));
     }
     setActionLoading(false);
   };
 
+  // ── Handle delete ──
+  const handleDelete = async () => {
+    if (!deleteCat) return;
+    setActionLoading(true);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/admin/categories?id=${deleteCat.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setDeleteError(
+          data?.error || L('No se pudo eliminar la categoría', 'Could not delete category'),
+        );
+        setActionLoading(false);
+        return;
+      }
+      setDeleteCat(null);
+      await refetch();
+    } catch {
+      setDeleteError(L('Error de conexión', 'Connection error'));
+    }
+    setActionLoading(false);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════════
   return (
     <div className="space-y-5">
       {/* ═══ STATS BAR ═══ */}
@@ -287,32 +635,30 @@ export function AdminCategories() {
         <div className="rounded-xl border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Package className="size-4" />
-            <span className="text-xs font-medium">{locale === 'es' ? 'Total categorías' : 'Total categories'}</span>
+            <span className="text-xs font-medium">{L('Total categorías', 'Total categories')}</span>
           </div>
           <p className="text-2xl font-bold">{totalCategories}</p>
         </div>
         <div className="rounded-xl border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-emerald-600">
             <ToggleLeft className="size-4" />
-            <span className="text-xs font-medium">{locale === 'es' ? 'Gratuitas' : 'Free'}</span>
+            <span className="text-xs font-medium">{L('Gratuitas', 'Free')}</span>
           </div>
           <p className="text-2xl font-bold text-emerald-600">{freeCategories}</p>
         </div>
         <div className="rounded-xl border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-amber-600">
             <DollarSign className="size-4" />
-            <span className="text-xs font-medium">{locale === 'es' ? 'De pago' : 'Paid'}</span>
+            <span className="text-xs font-medium">{L('De pago', 'Paid')}</span>
           </div>
           <p className="text-2xl font-bold text-amber-600">{paidCategories}</p>
         </div>
         <div className="rounded-xl border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2 text-primary">
             <BarChart3 className="size-4" />
-            <span className="text-xs font-medium">{locale === 'es' ? 'Ingresos' : 'Revenue'}</span>
+            <span className="text-xs font-medium">{L('Ingresos', 'Revenue')}</span>
           </div>
-          <p className="text-2xl font-bold text-primary">
-            €{categories.reduce((sum, p) => sum + (p.revenue || 0) + (p.children || []).reduce((s, c) => s + (c.revenue || 0), 0), 0).toFixed(0)}
-          </p>
+          <p className="text-2xl font-bold text-primary">€{totalRevenue.toFixed(0)}</p>
         </div>
       </div>
 
@@ -321,329 +667,241 @@ export function AdminCategories() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder={locale === 'es' ? 'Buscar categoría...' : 'Search category...'}
+            placeholder={L('Buscar categoría...', 'Search category...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={expandAll}>
-            <ChevronDown className="size-3.5 mr-1" />
-            {locale === 'es' ? 'Expandir' : 'Expand'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={collapseAll}>
-            <ChevronRight className="size-3.5 mr-1" />
-            {locale === 'es' ? 'Colapsar' : 'Collapse'}
-          </Button>
-        </div>
+        <Button onClick={openCreate}>
+          <Plus className="size-4 mr-1.5" />
+          {L('Nueva categoría', 'New category')}
+        </Button>
       </div>
 
-      {/* ═══ LEGEND ═══ */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
-        <div className="flex items-center gap-1.5">
-          <div className="size-3 rounded-sm bg-emerald-100 border border-emerald-300" />
-          <span>{locale === 'es' ? 'Gratis — publicación sin costo' : 'Free — no cost to publish'}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="size-3 rounded-sm bg-amber-100 border border-amber-300" />
-          <span>{locale === 'es' ? 'De pago — el usuario paga al publicar' : 'Paid — user pays to publish'}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Eye className="size-3" />
-          <span>{locale === 'es' ? 'Activa' : 'Active'}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <EyeOff className="size-3" />
-          <span>{locale === 'es' ? 'Inactiva' : 'Inactive'}</span>
-        </div>
-      </div>
-
-      {/* ═══ CATEGORY LIST ═══ */}
+      {/* ═══ GRID ═══ */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-52 w-full rounded-xl" />
           ))}
         </div>
       ) : filteredParents.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-16">
           <Search className="size-10 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground">
-            {locale === 'es' ? 'No se encontraron categorías' : 'No categories found'}
+            {L('No se encontraron categorías', 'No categories found')}
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredParents.map((parent) => {
-            const children = (parent.children || []);
-            const hasChildren = children.length > 0;
-            const isExpanded = expandedParents.has(parent.id) || !!search.trim();
-            const isTogglingParent = togglingId === parent.id;
+            const children = parent.children || [];
+            const isToggling = togglingId === parent.id;
 
             return (
               <div
                 key={parent.id}
-                className={`rounded-xl border overflow-hidden transition-colors ${
+                className={`group relative rounded-xl border p-4 flex flex-col gap-3 transition-all hover:shadow-md ${
                   parent.isPaid
-                    ? 'border-amber-300 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/10'
+                    ? 'border-amber-200 bg-gradient-to-br from-amber-50/80 to-white'
                     : 'border-border bg-card'
-                }`}
+                } ${!parent.isActive ? 'opacity-60' : ''}`}
               >
-                {/* ── Parent row ── */}
-                <div className="flex items-center gap-3 p-3 sm:p-4">
-                  {/* Expand/collapse */}
-                  {hasChildren ? (
-                    <button
-                      onClick={() => toggleParent(parent.id)}
-                      className="flex items-center justify-center size-7 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
-                    >
-                      {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                    </button>
-                  ) : (
-                    <div className="w-7" />
-                  )}
-
-                  {/* Icon */}
+                {/* ── Card header: icon + name ── */}
+                <div className="flex items-start gap-3">
                   <div
                     className="flex items-center justify-center size-10 rounded-xl shrink-0"
-                    style={{ backgroundColor: parent.color + '20', color: parent.color }}
+                    style={{ backgroundColor: parent.color + '18', color: parent.color }}
                   >
                     {getIcon(parent.icon, undefined, 20)}
                   </div>
-
-                  {/* Name & info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-sm">{locale === 'es' ? parent.nameEs : parent.nameEn}</span>
-                      {!parent.isActive && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
-                          {locale === 'es' ? 'Inactiva' : 'Inactive'}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-muted-foreground">
-                        {hasChildren
-                          ? `${children.length} ${locale === 'es' ? 'subcategorías' : 'subcategories'}`
-                          : locale === 'es' ? 'Sin subcategorías' : 'No subcategories'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">
-                        {parent.listingCount || 0} {locale === 'es' ? 'anuncios' : 'listings'}
-                      </span>
-                      {parent.revenue > 0 && (
-                        <>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="text-xs font-medium text-primary">€{parent.revenue.toFixed(2)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Price display / edit */}
-                  {parent.isPaid && editingPriceId !== parent.id && (
-                    <button
-                      onClick={() => {
-                        setEditingPriceId(parent.id);
-                        setPriceDraft(String(parent.price ?? 0));
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors group"
-                    >
-                      <DollarSign className="size-3.5 text-amber-700 dark:text-amber-400" />
-                      <span className="text-sm font-bold text-amber-800 dark:text-amber-300">
-                        €{parent.price?.toFixed(2) ?? '0.00'}
-                      </span>
-                      <Pencil className="size-3 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  )}
-
-                  {/* Price edit input */}
-                  {editingPriceId === parent.id && (
-                    <div className="flex items-center gap-1">
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={priceDraft}
-                          onChange={(e) => setPriceDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { savePrice(parent); }
-                            if (e.key === 'Escape') { setEditingPriceId(null); }
-                          }}
-                          className="w-24 h-8 pl-7 text-sm"
-                          autoFocus
-                        />
-                      </div>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600" onClick={() => savePrice(parent)}>
-                        <Check className="size-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingPriceId(null)}>
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Controls */}
-                  <div className="flex items-center gap-1.5">
-                    {/* isPaid toggle */}
-                    <div className="relative">
-                      {isTogglingParent && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                        </div>
-                      )}
-                      <Switch
-                        checked={parent.isPaid}
-                        onCheckedChange={() => toggleIsPaid(parent)}
-                        className="scale-90"
-                        disabled={isTogglingParent}
-                      />
-                    </div>
-
-                    {/* Active toggle */}
-                    <button
-                      onClick={() => toggleIsActive(parent)}
-                      className="p-1.5 rounded-md hover:bg-muted transition-colors"
-                      title={parent.isActive ? (locale === 'es' ? 'Desactivar' : 'Deactivate') : (locale === 'es' ? 'Activar' : 'Activate')}
-                    >
-                      {parent.isActive
-                        ? <Eye className="size-4 text-emerald-600" />
-                        : <EyeOff className="size-4 text-muted-foreground/50" />}
-                    </button>
-
-                    {/* Edit */}
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openEdit(parent)}>
-                      <Pencil className="size-3.5" />
-                    </Button>
+                    <h3 className="font-bold text-sm leading-tight truncate">
+                      {locale === 'es' ? parent.nameEs : parent.nameEn}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {locale === 'es' ? parent.nameEn : parent.nameEs}
+                    </p>
                   </div>
                 </div>
 
-                {/* ── Children ── */}
-                {hasChildren && isExpanded && (
-                  <div className="border-t bg-muted/20">
-                    {children.map((child, idx) => {
-                      const isTogglingChild = togglingId === child.id;
-                      const isEditingChildPrice = editingPriceId === child.id;
+                {/* ── Badges ── */}
+                <div className="flex flex-wrap gap-1.5">
+                  {parent.isPaid && (
+                    <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+                      <DollarSign className="size-2.5 mr-0.5" />
+                      {L('De pago', 'Paid')}
+                      {parent.price ? ` €${parent.price.toFixed(2)}` : ''}
+                    </Badge>
+                  )}
+                  {!parent.isActive && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                      <EyeOff className="size-2.5 mr-0.5" />
+                      {L('Inactiva', 'Inactive')}
+                    </Badge>
+                  )}
+                  {parent.isActive && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-50">
+                      <Eye className="size-2.5 mr-0.5" />
+                      {L('Activa', 'Active')}
+                    </Badge>
+                  )}
+                </div>
 
-                      return (
-                        <div
-                          key={child.id}
-                          className={`flex items-center gap-3 px-4 py-3 pl-12 sm:pl-16 hover:bg-muted/50 transition-colors ${
-                            idx < children.length - 1 ? 'border-b border-border/40' : ''
-                          } ${child.isPaid ? 'bg-amber-50/30 dark:bg-amber-950/5' : ''}`}
-                        >
-                          {/* Child icon */}
-                          <div
-                            className="flex items-center justify-center size-8 rounded-lg shrink-0"
-                            style={{ backgroundColor: child.color + '20', color: child.color }}
-                          >
-                            {getIcon(child.icon, undefined, 16)}
-                          </div>
+                {/* ── Stats row ── */}
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>
+                    {parent.listingCount || 0} {L('anuncios', 'listings')}
+                  </span>
+                  {parent.revenue > 0 && (
+                    <span className="font-medium text-primary">€{parent.revenue.toFixed(2)}</span>
+                  )}
+                  {children.length > 0 && (
+                    <span>
+                      {children.length} {L('sub', 'sub')}
+                    </span>
+                  )}
+                </div>
 
-                          {/* Name & info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium">{locale === 'es' ? child.nameEs : child.nameEn}</span>
-                              {!child.isActive && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
-                                  {locale === 'es' ? 'Inactiva' : 'Inactive'}
-                                </Badge>
-                              )}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {child.listingCount || 0} {locale === 'es' ? 'anuncios' : 'listings'}
-                              {child.revenue > 0 && ` · €${child.revenue.toFixed(2)}`}
-                            </span>
-                          </div>
-
-                          {/* Price display / edit */}
-                          {child.isPaid && !isEditingChildPrice && (
-                            <button
-                              onClick={() => {
-                                setEditingPriceId(child.id);
-                                setPriceDraft(String(child.price ?? 0));
-                              }}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors group"
-                            >
-                              <DollarSign className="size-3 text-amber-700 dark:text-amber-400" />
-                              <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                                €{child.price?.toFixed(2) ?? '0.00'}
-                              </span>
-                              <Pencil className="size-2.5 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </button>
-                          )}
-
-                          {/* Price edit input */}
-                          {isEditingChildPrice && (
-                            <div className="flex items-center gap-1">
-                              <div className="relative">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={priceDraft}
-                                  onChange={(e) => setPriceDraft(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') { savePrice(child); }
-                                    if (e.key === 'Escape') { setEditingPriceId(null); }
-                                  }}
-                                  className="w-20 h-7 pl-6 text-xs"
-                                  autoFocus
-                                />
-                              </div>
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600" onClick={() => savePrice(child)}>
-                                <Check className="size-3.5" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingPriceId(null)}>
-                                <X className="size-3.5" />
-                              </Button>
-                            </div>
-                          )}
-
-                          {/* Controls */}
-                          <div className="flex items-center gap-1">
-                            <div className="relative">
-                              {isTogglingChild && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                                </div>
-                              )}
-                              <Switch
-                                checked={child.isPaid}
-                                onCheckedChange={() => toggleIsPaid(child)}
-                                className="scale-75"
-                                disabled={isTogglingChild}
-                              />
-                            </div>
-
-                            <button
-                              onClick={() => toggleIsActive(child)}
-                              className="p-1 rounded-md hover:bg-muted transition-colors"
-                              title={child.isActive ? (locale === 'es' ? 'Desactivar' : 'Deactivate') : (locale === 'es' ? 'Activar' : 'Activate')}
-                            >
-                              {child.isActive
-                                ? <Eye className="size-3.5 text-emerald-600" />
-                                : <EyeOff className="size-3.5 text-muted-foreground/50" />}
-                            </button>
-
-                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => openEdit(child)}>
-                              <Pencil className="size-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                {/* ── Children as pill badges ── */}
+                {children.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {children.map((child) => (
+                      <button
+                        key={child.id}
+                        onClick={() => openEdit(child)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-muted/80 hover:bg-muted transition-colors text-foreground/80 max-w-full truncate"
+                        title={`${child.nameEs} / ${child.nameEn} — ${child.listingCount || 0} ${L('anuncios', 'listings')}${child.isPaid ? ` — €${(child.price ?? 0).toFixed(2)}` : ''}`}
+                      >
+                        <span
+                          className="size-2.5 rounded-sm shrink-0"
+                          style={{ backgroundColor: child.color }}
+                        />
+                        <span className="truncate">
+                          {locale === 'es' ? child.nameEs : child.nameEn}
+                        </span>
+                        {!child.isActive && (
+                          <EyeOff className="size-2.5 text-muted-foreground shrink-0" />
+                        )}
+                      </button>
+                    ))}
                   </div>
                 )}
+
+                {/* ── Card actions ── */}
+                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-border/60">
+                  {/* isPaid toggle */}
+                  <div className="relative mr-auto">
+                    {isToggling && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                    <Switch
+                      checked={parent.isPaid}
+                      onCheckedChange={() => toggleIsPaid(parent)}
+                      className="scale-[0.85]"
+                      disabled={isToggling}
+                      title={L('Activar/desactivar pago', 'Toggle paid')}
+                    />
+                  </div>
+
+                  {/* Toggle active */}
+                  <button
+                    onClick={() => toggleIsActive(parent)}
+                    className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                    title={parent.isActive ? L('Desactivar', 'Deactivate') : L('Activar', 'Activate')}
+                  >
+                    {parent.isActive ? (
+                      <Eye className="size-3.5 text-emerald-600" />
+                    ) : (
+                      <EyeOff className="size-3.5 text-muted-foreground/50" />
+                    )}
+                  </button>
+
+                  {/* Edit */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => openEdit(parent)}
+                    title={L('Editar categoría', 'Edit category')}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+
+                  {/* Delete */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setDeleteCat(parent);
+                      setDeleteError('');
+                    }}
+                    disabled={children.length > 0 || (parent.listingCount ?? 0) > 0}
+                    title={
+                      children.length > 0
+                        ? L('No se puede eliminar: tiene subcategorías', 'Cannot delete: has subcategories')
+                        : (parent.listingCount ?? 0) > 0
+                          ? L('No se puede eliminar: tiene anuncios', 'Cannot delete: has listings')
+                          : L('Eliminar categoría', 'Delete category')
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* ═══ CREATE DIALOG ═══ */}
+      <Dialog open={createOpen} onOpenChange={(v) => !v && setCreateOpen(false)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{L('Nueva categoría', 'New category')}</DialogTitle>
+            <DialogDescription>
+              {L(
+                'Crea una nueva categoría para el directorio. Los campos con * son obligatorios.',
+                'Create a new directory category. Fields marked with * are required.',
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <CategoryFormFields
+            form={createForm}
+            setForm={setCreateForm}
+            locale={locale}
+            parentOptions={parentOptions}
+            isCreate
+          />
+
+          {saveError && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="size-4" />
+              {saveError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              <X className="size-4 mr-1" />
+              {tp('common.cancel')}
+            </Button>
+            <Button onClick={handleCreate} disabled={actionLoading || !createForm.nameEs.trim() || !createForm.nameEn.trim()}>
+              {actionLoading ? (
+                <Loader2 className="size-4 mr-1 animate-spin" />
+              ) : (
+                <Plus className="size-4 mr-1" />
+              )}
+              {actionLoading ? L('Creando...', 'Creating...') : L('Crear', 'Create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ═══ EDIT DIALOG ═══ */}
       <Dialog open={!!editCat} onOpenChange={() => setEditCat(null)}>
@@ -651,180 +909,52 @@ export function AdminCategories() {
           <DialogHeader>
             <DialogTitle>{tp('admin.editCategory')}</DialogTitle>
             <DialogDescription>
-              {locale === 'es'
-                ? 'Edita los detalles de la categoría. Los cambios se guardan inmediatamente.'
-                : 'Edit category details. Changes are saved immediately.'}
+              {L(
+                'Edita los detalles de la categoría. Los cambios se guardan inmediatamente.',
+                'Edit category details. Changes are saved immediately.',
+              )}
             </DialogDescription>
           </DialogHeader>
+
           {editCat && (
             <div className="space-y-5">
-              {/* Names */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Nombre (ES)</Label>
-                  <Input value={editForm.nameEs || ''} onChange={(e) => setEditForm({ ...editForm, nameEs: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Nombre (EN)</Label>
-                  <Input value={editForm.nameEn || ''} onChange={(e) => setEditForm({ ...editForm, nameEn: e.target.value })} />
-                </div>
-              </div>
+              <CategoryFormFields
+                form={editForm}
+                setForm={setEditForm}
+                locale={locale}
+                parentOptions={[]}
+                isCreate={false}
+              />
 
-              {/* Icon & Color */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Icono (Lucide)</Label>
-                  <Input value={editForm.icon || ''} onChange={(e) => setEditForm({ ...editForm, icon: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Color</Label>
-                  <div className="flex gap-2">
-                    <Input value={editForm.color || ''} onChange={(e) => setEditForm({ ...editForm, color: e.target.value })} />
-                    <div className="w-10 h-10 rounded-lg border flex-shrink-0" style={{ backgroundColor: editForm.color }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Order & Expiry */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Orden</Label>
-                  <Input type="number" value={editForm.sortOrder || 0} onChange={(e) => setEditForm({ ...editForm, sortOrder: parseInt(e.target.value) || 0 })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Días expiración</Label>
-                  <Input type="number" value={editForm.expiryDays || 30} onChange={(e) => setEditForm({ ...editForm, expiryDays: parseInt(e.target.value) || 30 })} />
-                </div>
-              </div>
-
-              {/* Display settings */}
-              <div className="space-y-3 p-3 rounded-lg bg-muted/40 border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  {locale === 'es' ? 'Configuración de visualización' : 'Display settings'}
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Tag className="size-3.5 text-muted-foreground" />
-                    <Label className="text-sm">{locale === 'es' ? 'Mostrar precio' : 'Show price'}</Label>
-                  </div>
-                  <Switch checked={editForm.showPrice} onCheckedChange={(v) => setEditForm({ ...editForm, showPrice: v })} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Tag className="size-3.5 text-muted-foreground" />
-                    <Label className="text-sm">{locale === 'es' ? 'Mostrar ubicación' : 'Show location'}</Label>
-                  </div>
-                  <Switch checked={editForm.showLocation} onCheckedChange={(v) => setEditForm({ ...editForm, showLocation: v })} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ImagePlus className="size-3.5 text-muted-foreground" />
-                    <Label className="text-sm">{locale === 'es' ? 'Mostrar imágenes' : 'Show images'}</Label>
-                  </div>
-                  <Switch checked={editForm.showImages} onCheckedChange={(v) => setEditForm({ ...editForm, showImages: v })} />
-                </div>
-              </div>
-
-              {/* Active toggle */}
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="flex items-center gap-2">
-                  {editForm.isActive ? <Eye className="size-4 text-emerald-600" /> : <EyeOff className="size-4 text-muted-foreground" />}
-                  <Label className="text-sm">{locale === 'es' ? 'Categoría activa' : 'Active category'}</Label>
-                </div>
-                <Switch checked={editForm.isActive} onCheckedChange={(v) => setEditForm({ ...editForm, isActive: v })} />
-              </div>
-
-              <Separator />
-
-              {/* ═══ PAYMENT SECTION ═══ */}
-              <div className={`space-y-3 p-4 rounded-xl border-2 transition-colors ${
-                editForm.isPaid
-                  ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/10'
-                  : 'border-border'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className={`size-5 ${editForm.isPaid ? 'text-amber-600' : 'text-muted-foreground'}`} />
-                    <div>
-                      <Label className="text-sm font-semibold">
-                        {locale === 'es' ? 'Categoría de pago' : 'Paid category'}
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {locale === 'es'
-                          ? 'El usuario deberá pagar para publicar en esta categoría'
-                          : 'User must pay to publish in this category'}
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={editForm.isPaid}
-                    onCheckedChange={(v) => setEditForm({ ...editForm, isPaid: v, price: v ? (editForm.price || 5) : '' })}
-                  />
-                </div>
-
-                {editForm.isPaid && (
-                  <div className="pt-3 border-t border-amber-200 dark:border-amber-800 space-y-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                        {locale === 'es' ? 'Precio de publicación (€)' : 'Publication price (€)'}
-                      </Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-muted-foreground">€</span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={editForm.price || ''}
-                          onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) || null })}
-                          placeholder="0.00"
-                          className="h-12 pl-9 text-lg font-bold"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {locale === 'es'
-                          ? 'Puedes cambiar este precio en cualquier momento según tus promociones de marketing'
-                          : 'You can change this price at any time based on your marketing promotions'}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-100/60 dark:bg-amber-900/20">
-                      <Clock className="size-4 text-amber-600 shrink-0" />
-                      <p className="text-xs text-amber-700 dark:text-amber-400">
-                        {locale === 'es'
-                          ? 'Tip: Puedes activar/desactivar el pago segun tus campanas. Si desactivas, la categoria vuelve a ser gratuita automaticamente.'
-                          : 'Tip: You can enable/disable payment based on your campaigns. Disabling it makes the category free automatically.'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Stats */}
+              {/* Stats section for edit */}
               {editCat.listingCount > 0 && (
                 <div className="p-3 rounded-lg bg-muted/40 border flex items-center gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">{locale === 'es' ? 'Anuncios' : 'Listings'}:</span>{' '}
+                    <span className="text-muted-foreground">{L('Anuncios', 'Listings')}:</span>{' '}
                     <span className="font-semibold">{editCat.listingCount}</span>
                   </div>
-                  {'revenue' in editCat && (editCat as AdminCategoryDTO).revenue > 0 && (
+                  {editCat.revenue > 0 && (
                     <div>
-                      <span className="text-muted-foreground">{locale === 'es' ? 'Ingresos' : 'Revenue'}:</span>{' '}
-                      <span className="font-semibold text-primary">€{(editCat as AdminCategoryDTO).revenue.toFixed(2)}</span>
+                      <span className="text-muted-foreground">{L('Ingresos', 'Revenue')}:</span>{' '}
+                      <span className="font-semibold text-primary">€{editCat.revenue.toFixed(2)}</span>
                     </div>
                   )}
                 </div>
               )}
             </div>
           )}
+
           {saveError && (
             <div className="flex items-center gap-2 text-sm text-destructive">
               <AlertCircle className="size-4" />
               {saveError}
             </div>
           )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCat(null)}>
-              <X className="size-4 mr-1" />{tp('common.cancel')}
+              <X className="size-4 mr-1" />
+              {tp('common.cancel')}
             </Button>
             <Button onClick={handleSave} disabled={actionLoading}>
               {actionLoading ? (
@@ -832,11 +962,66 @@ export function AdminCategories() {
               ) : (
                 <Save className="size-4 mr-1" />
               )}
-              {actionLoading ? (locale === 'es' ? 'Guardando...' : 'Saving...') : tp('common.save')}
+              {actionLoading ? L('Guardando...', 'Saving...') : tp('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ═══ DELETE CONFIRMATION ═══ */}
+      <AlertDialog open={!!deleteCat} onOpenChange={(v) => !v && setDeleteCat(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{L('¿Borrar esta categoría?', 'Delete this category?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteCat && (
+                <>
+                  {L(
+                    `Se eliminará permanentemente la categoría "${deleteCat.nameEs}".`,
+                    `The category "${deleteCat.nameEs}" will be permanently deleted.`,
+                  )}
+                  {deleteCat.children && deleteCat.children.length > 0 && (
+                    <span className="block mt-2 font-medium text-destructive">
+                      {L(
+                        'Esta categoría tiene subcategorías y no puede ser eliminada.',
+                        'This category has subcategories and cannot be deleted.',
+                      )}
+                    </span>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="size-4" />
+              {deleteError}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>
+              {tp('common.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={
+                actionLoading ||
+                !deleteCat ||
+                (deleteCat.children && deleteCat.children.length > 0) ||
+                (deleteCat.listingCount ?? 0) > 0
+              }
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {actionLoading ? (
+                <Loader2 className="size-4 mr-1 animate-spin" />
+              ) : (
+                <Trash2 className="size-4 mr-1" />
+              )}
+              {L('Eliminar', 'Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

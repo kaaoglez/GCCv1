@@ -8,7 +8,24 @@ import type {
   ListingStatus,
   CategoryDTO,
   UserSummaryDTO,
+  ContactMethod,
 } from '@/lib/types';
+
+/**
+ * Parse contactMethod field — handles both legacy single-string
+ * ("message") and new JSON-array ('["message","phone"]') formats.
+ */
+function parseContactMethods(raw: string): ContactMethod[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as ContactMethod[];
+  } catch {
+    // not JSON — legacy single value
+  }
+  // Single string fallback
+  const valid: ContactMethod[] = ['message', 'phone', 'email', 'whatsapp'];
+  return valid.includes(raw as ContactMethod) ? [raw as ContactMethod] : ['message'];
+}
 
 /**
  * Maps a Prisma listing (with category + author includes) to a ListingDTO.
@@ -151,7 +168,7 @@ export function mapListingToDTO(listing: {
     contactCount: listing.contactCount,
     showPhone: listing.showPhone,
     showEmail: listing.showEmail,
-    contactMethod: listing.contactMethod as ListingDTO['contactMethod'],
+    contactMethods: parseContactMethods(listing.contactMethod),
     createdAt: listing.createdAt.toISOString(),
     updatedAt: listing.updatedAt.toISOString(),
     price: (metadata.price as number) ?? undefined,

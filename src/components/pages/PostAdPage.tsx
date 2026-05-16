@@ -131,9 +131,14 @@ export function PostAdPage() {
     resetForm();
   }
 
-  const handleBack = () => {
+    const handleBack = () => {
     if (step > 0) {
       setStep(step - 1);
+      return;
+    }
+    if (selectedParent) {
+      setSelectedParent(null);
+      setSelectedCategory(null);
       return;
     }
     navigateBack();

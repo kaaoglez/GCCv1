@@ -71,11 +71,11 @@ export default function Home() {
   }
 
   const renderMain = () => {
+        if (isPostAdPage) {
+      return <PostAdPage />;
+    }
     if (isListingFullView) {
       return <ListingFullView key={`listing-${selectedListing?.id ?? 'none'}`} />;
-    }
-    if (isPostAdPage) {
-      return <PostAdPage />;
     }
     if (isEventFullView) {
       return <EventFullView key={`event-${selectedEvent?.id ?? 'none'}`} />;

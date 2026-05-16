@@ -14,10 +14,12 @@ import { ListingCard } from '@/components/shared/ListingCard';
 import { SectionContainer } from '@/components/shared/SectionContainer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useI18n } from '@/hooks/use-i18n';
+import { useModalStore } from '@/lib/modal-store';
 import type { ListingDTO, PaginatedResponse } from '@/lib/types';
 
 export function BusinessDirectory() {
   const { t, tp } = useI18n();
+  const openPromoteBusinessPage = useModalStore((s) => s.openPromoteBusinessPage);
   const [listings, setListings] = useState<ListingDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,6 +106,7 @@ export function BusinessDirectory() {
                   </div>
                   <Button
                     size="lg"
+                    onClick={openPromoteBusinessPage}
                     className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold gap-2 shrink-0 shadow-lg"
                   >
                     {tp('directory', 'promoteCta')}

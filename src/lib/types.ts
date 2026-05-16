@@ -7,7 +7,7 @@
 // ENUMS (Application-level, mapped to Prisma strings)
 // ─────────────────────────────────────────────────────────────
 
-export type ListingTier = 'FREE' | 'HIGHLIGHTED' | 'VIP' | 'BUSINESS';
+export type ListingTier = 'FREE' | 'HIGHLIGHTED' | 'VIP';
 export type ListingStatus = 'DRAFT' | 'ACTIVE' | 'EXPIRED' | 'SOLD' | 'ARCHIVED';
 export type EventCategory = 'WORKSHOP' | 'CLEANUP' | 'MARKET' | 'CONCERT' | 'SPORT' | 'COMMUNITY' | 'CULTURE' | 'OTHER';
 export type EventStatus = 'UPCOMING' | 'ONGOING' | 'PAST' | 'CANCELLED';
@@ -397,36 +397,6 @@ export const PRICING_PLANS: PricingPlan[] = [
     durationDays: 90,
     maxImages: 10,
     isPopular: true,
-  },
-  {
-    id: 'BUSINESS',
-    nameEs: 'Negocio',
-    nameEn: 'Business',
-    price: 25,
-    featuresEs: [
-      'Todo lo VIP, más:',
-      'Perfil de negocio completo',
-      'Badge "Negocio Verificado"',
-      'Aparición en Directorio Comercial',
-      'Horarios y ubicación en Google Maps',
-      'Hasta 15 fotos',
-      'Resalte permanente',
-      'Vigencia 1 año',
-    ],
-    featuresEn: [
-      'Everything in VIP, plus:',
-      'Complete business profile',
-      '"Verified Business" badge',
-      'Appears in Business Directory',
-      'Hours and Google Maps location',
-      'Up to 15 photos',
-      'Permanent highlight',
-      '1 year validity',
-    ],
-    color: '#7C3AED',
-    badge: 'NEGOCIO',
-    durationDays: 365,
-    maxImages: 15,
   },
 ];
 

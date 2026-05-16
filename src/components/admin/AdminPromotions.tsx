@@ -21,14 +21,14 @@ import {
 import type { ListingDTO, ListingTier, CategoryDTO, Locale } from '@/lib/types';
 import { PRICING_PLANS } from '@/lib/types';
 
-const PAID_TIERS: ListingTier[] = ['HIGHLIGHTED', 'VIP', 'BUSINESS'];
+const PAID_TIERS: ListingTier[] = ['HIGHLIGHTED', 'VIP'];
 
 const tierBadge = (tier: string): React.CSSProperties => {
   const colors: Record<string, { backgroundColor: string; color: string }> = {
     FREE: { backgroundColor: '#6b7280', color: '#ffffff' },
     HIGHLIGHTED: { backgroundColor: '#f59e0b', color: '#ffffff' },
     VIP: { backgroundColor: '#f97316', color: '#ffffff' },
-    BUSINESS: { backgroundColor: '#9333ea', color: '#ffffff' },
+
   };
   return colors[tier] || colors.FREE;
 };
@@ -47,7 +47,7 @@ function VipSliderTab({ locale, tp }: { locale: Locale; tp: (k: string) => strin
       const vipData = Array.isArray(vipList.data) ? vipList.data : [];
       const allListings = [...featured, ...vipData.filter((l: ListingDTO) => !featured.find((f: ListingDTO) => f.id === l.id))];
       setListings(allListings);
-      setSliderIds(new Set(allListings.filter((l: ListingDTO) => l.tier === 'VIP' || l.tier === 'BUSINESS').map((l: ListingDTO) => l.id)));
+      setSliderIds(new Set(allListings.filter((l: ListingDTO) => l.tier === 'VIP').map((l: ListingDTO) => l.id)));
     }).finally(() => setLoading(false));
   }, []);
 

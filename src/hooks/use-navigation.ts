@@ -34,6 +34,7 @@ export interface HistoryState {
   view: PageView;
   selectedCategoryId: string | null;
   isPostAdPage: boolean;
+  isPromoteBusinessPage: boolean;
   isListingFullView: boolean;
   isEventFullView: boolean;
   isArticleReadingView: boolean;
@@ -48,6 +49,7 @@ function readStoreState(): HistoryState {
     view: s.currentView,
     selectedCategoryId: s.selectedCategoryId,
     isPostAdPage: s.isPostAdPage,
+    isPromoteBusinessPage: s.isPromoteBusinessPage,
     isListingFullView: s.isListingFullView,
     isEventFullView: s.isEventFullView,
     isArticleReadingView: s.isArticleReadingView,
@@ -66,6 +68,8 @@ export function pushNavigationState() {
   const state = readStoreState();
   if (state.isPostAdPage) {
     document.title = 'Publicar Anuncio · Gran Canaria Conecta';
+  } else if (state.isPromoteBusinessPage) {
+    document.title = 'Promociona tu Negocio · Gran Canaria Conecta';
   } else {
     updateTitle(state.view);
   }
@@ -88,6 +92,7 @@ export function navigateTo(view: PageView, extra?: { categoryId?: string }) {
     const store = useModalStore.getState();
     // Close any open full views first
     if (store.isPostAdPage) store.closePostAdPage();
+    if (store.isPromoteBusinessPage) store.closePromoteBusinessPage();
     if (store.isListingFullView) store.closeListingFullView();
     if (store.isEventFullView) store.closeEventFullView();
     if (store.isArticleReadingView) store.closeArticleReadingView();
@@ -107,11 +112,12 @@ export function navigateTo(view: PageView, extra?: { categoryId?: string }) {
 // ── Navigate to the same page or home (replace, not push) ──
 export function navigateToSameOrHome(view: PageView) {
   const store = useModalStore.getState();
-  const alreadyThere = store.currentView === view && !store.isPostAdPage && !store.isListingFullView && !store.isEventFullView && !store.isArticleReadingView;
+  const alreadyThere = store.currentView === view && !store.isPostAdPage && !store.isPromoteBusinessPage && !store.isListingFullView && !store.isEventFullView && !store.isArticleReadingView;
 
   __skipHistoryPush(true);
   try {
     if (store.isPostAdPage) store.closePostAdPage();
+    if (store.isPromoteBusinessPage) store.closePromoteBusinessPage();
     if (store.isListingFullView) store.closeListingFullView();
     if (store.isEventFullView) store.closeEventFullView();
     if (store.isArticleReadingView) store.closeArticleReadingView();
@@ -153,6 +159,12 @@ function restoreState(state: HistoryState) {
       else store.closePostAdPage();
     }
 
+    // Promote Business Page
+    if (state.isPromoteBusinessPage !== store.isPromoteBusinessPage) {
+      if (state.isPromoteBusinessPage) store.openPromoteBusinessPage();
+      else store.closePromoteBusinessPage();
+    }
+
     // Listing full view
     if (state.isListingFullView !== store.isListingFullView) {
       if (state.isListingFullView) store.openListingFullView();
@@ -185,6 +197,8 @@ function restoreState(state: HistoryState) {
 
     if (state.isPostAdPage) {
       document.title = 'Publicar Anuncio · Gran Canaria Conecta';
+    } else if (state.isPromoteBusinessPage) {
+      document.title = 'Promociona tu Negocio · Gran Canaria Conecta';
     } else {
       updateTitle(state.view);
     }
@@ -209,6 +223,7 @@ export function useNavigation() {
 
     const onPopState = (e: PopStateEvent) => {
       const state = e.state as HistoryState | null;
+      console.log('[NAV] popstate fired');
       if (state && state.view) {
         restoreState(state);
       } else {
@@ -219,6 +234,7 @@ export function useNavigation() {
           store.setCurrentView('home');
           store.setSelectedCategoryId(null);
           if (store.isPostAdPage) store.closePostAdPage();
+          if (store.isPromoteBusinessPage) store.closePromoteBusinessPage();
           if (store.isListingFullView) store.closeListingFullView();
           if (store.isEventFullView) store.closeEventFullView();
           if (store.isArticleReadingView) store.closeArticleReadingView();

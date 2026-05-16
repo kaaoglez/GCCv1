@@ -10,6 +10,7 @@ import {
   Moon,
   Globe,
   Plus,
+  Megaphone,
   Menu,
   Home,
   LogOut,
@@ -356,6 +357,15 @@ export function Navbar() {
             <Plus className="h-4 w-4" />
             {tp('nav', 'postAd')}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-muted-foreground hover:text-primary hover:border-primary/50 font-semibold"
+            onClick={() => useModalStore.getState().openPromoteBusinessPage()}
+          >
+            <Megaphone className="h-4 w-4" />
+            <span className="hidden xl:inline">{locale === 'es' ? 'Promocionar' : 'Advertise'}</span>
+          </Button>
         </div>
 
         {/* ── Mobile Actions ────────────────────────────── */}
@@ -536,6 +546,10 @@ export function Navbar() {
                   }}>
                     <Plus className="h-4 w-4" />
                     {tp('nav', 'postAd')}
+                  </Button>
+                  <Button variant="outline" className="w-full gap-2 font-semibold mt-2" onClick={() => { closeMobile(); useModalStore.getState().openPromoteBusinessPage(); }}>
+                    <Megaphone className="h-4 w-4" />
+                    {locale === 'es' ? 'Promocionar Negocio' : 'Advertise Business'}
                   </Button>
                 </div>
               </div>

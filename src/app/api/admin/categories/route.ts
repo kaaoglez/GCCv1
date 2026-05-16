@@ -3,11 +3,26 @@ import { db } from '@/lib/db';
 import type { CategoryDTO } from '@/lib/types';
 import { adminUpdateCategorySchema, validateBody } from '@/lib/validations';
 
-// GET /api/admin/categories — All categories with listing counts and revenue
+// GET /api/admin/categories — All categories with children, listing counts and revenue
 export async function GET() {
   try {
     const categories = await db.category.findMany({
       include: {
+        children: {
+          include: {
+            children: {
+              include: {
+                _count: {
+                  select: { listings: true },
+                },
+              },
+            },
+            _count: {
+              select: { listings: true },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
         _count: {
           select: { listings: true },
         },
@@ -36,40 +51,78 @@ export async function GET() {
       }
     }
 
-    const data: (CategoryDTO & { revenue: number })[] = categories.map((cat) => {
-      let allowedFields: CategoryDTO['allowedFields'] = [];
-      try {
-        allowedFields = JSON.parse(cat.allowedFields || '[]');
-      } catch {
-        allowedFields = [];
-      }
+    const data: (CategoryDTO & { revenue: number })[] = categories
+      .filter((cat) => !cat.parentId) // Only root categories
+      .map((cat) => {
+        let allowedFields: CategoryDTO['allowedFields'] = [];
+        try {
+          allowedFields = JSON.parse(cat.allowedFields || '[]');
+        } catch {
+          allowedFields = [];
+        }
 
-      return {
-        id: cat.id,
-        slug: cat.slug,
-        nameEs: cat.nameEs,
-        nameEn: cat.nameEn,
-        descEs: cat.descEs ?? undefined,
-        descEn: cat.descEn ?? undefined,
-        icon: cat.icon,
-        color: cat.color,
-        parentId: cat.parentId ?? undefined,
-        sortOrder: cat.sortOrder,
-        isActive: cat.isActive,
-        isPaid: cat.isPaid,
-        price: cat.price ?? undefined,
-        highlightPrice: cat.highlightPrice ?? undefined,
-        vipPrice: cat.vipPrice ?? undefined,
-        allowedFields,
-        showPrice: cat.showPrice,
-        showLocation: cat.showLocation,
-        showImages: cat.showImages,
-        maxImages: cat.maxImages,
-        expiryDays: cat.expiryDays,
-        listingCount: cat._count.listings,
-        revenue: categoryRevenue[cat.id] || 0,
-      };
-    });
+        const children: (CategoryDTO & { revenue: number })[] = (cat.children || []).map((child) => {
+          let childFields: CategoryDTO['allowedFields'] = [];
+          try {
+            childFields = JSON.parse(child.allowedFields || '[]');
+          } catch {
+            childFields = [];
+          }
+
+          return {
+            id: child.id,
+            slug: child.slug,
+            nameEs: child.nameEs,
+            nameEn: child.nameEn,
+            descEs: child.descEs ?? undefined,
+            descEn: child.descEn ?? undefined,
+            icon: child.icon,
+            color: child.color,
+            parentId: child.parentId ?? undefined,
+            sortOrder: child.sortOrder,
+            isActive: child.isActive,
+            isPaid: child.isPaid,
+            price: child.price ?? undefined,
+            highlightPrice: child.highlightPrice ?? undefined,
+            vipPrice: child.vipPrice ?? undefined,
+            allowedFields: childFields,
+            showPrice: child.showPrice,
+            showLocation: child.showLocation,
+            showImages: child.showImages,
+            maxImages: child.maxImages,
+            expiryDays: child.expiryDays,
+            listingCount: child._count.listings,
+            revenue: categoryRevenue[child.id] || 0,
+          };
+        });
+
+        return {
+          id: cat.id,
+          slug: cat.slug,
+          nameEs: cat.nameEs,
+          nameEn: cat.nameEn,
+          descEs: cat.descEs ?? undefined,
+          descEn: cat.descEn ?? undefined,
+          icon: cat.icon,
+          color: cat.color,
+          parentId: cat.parentId ?? undefined,
+          sortOrder: cat.sortOrder,
+          isActive: cat.isActive,
+          isPaid: cat.isPaid,
+          price: cat.price ?? undefined,
+          highlightPrice: cat.highlightPrice ?? undefined,
+          vipPrice: cat.vipPrice ?? undefined,
+          allowedFields,
+          showPrice: cat.showPrice,
+          showLocation: cat.showLocation,
+          showImages: cat.showImages,
+          maxImages: cat.maxImages,
+          expiryDays: cat.expiryDays,
+          listingCount: cat._count.listings,
+          revenue: categoryRevenue[cat.id] || 0,
+          children,
+        };
+      });
 
     return NextResponse.json(data);
   } catch (error) {

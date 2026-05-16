@@ -17,6 +17,7 @@ import { ArticleReadingView } from '@/components/modals/ArticleReadingView';
 import { ListingFullView } from '@/components/modals/ListingFullView';
 import { EventFullView } from '@/components/modals/EventFullView';
 import { PostAdPage } from '@/components/pages/PostAdPage';
+import { PromoteBusinessPage } from '@/components/pages/PromoteBusinessPage';
 import { AdminPage } from '@/components/admin/AdminPage';
 import { AnunciosPage } from '@/components/pages/AnunciosPage';
 import { EventosPage } from '@/components/pages/EventosPage';
@@ -54,6 +55,7 @@ export default function Home() {
   const isListingFullView = useModalStore((s) => s.isListingFullView);
   const isEventFullView = useModalStore((s) => s.isEventFullView);
   const isPostAdPage = useModalStore((s) => s.isPostAdPage);
+  const isPromoteBusinessPage = useModalStore((s) => s.isPromoteBusinessPage);
   const selectedListing = useModalStore((s) => s.selectedListing);
   const selectedEvent = useModalStore((s) => s.selectedEvent);
 
@@ -71,8 +73,11 @@ export default function Home() {
   }
 
   const renderMain = () => {
-        if (isPostAdPage) {
+    if (isPostAdPage) {
       return <PostAdPage />;
+    }
+    if (isPromoteBusinessPage) {
+      return <PromoteBusinessPage />;
     }
     if (isListingFullView) {
       return <ListingFullView key={`listing-${selectedListing?.id ?? 'none'}`} />;

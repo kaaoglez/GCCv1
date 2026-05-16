@@ -39,7 +39,7 @@ const ITEMS_PER_PAGE = 12;
 
 export function DirectorioPage() {
   const { locale, tp } = useI18n();
-  const openPostAd = useModalStore((s) => s.openPostAd);
+  const openPromoteBusinessPage = useModalStore((s) => s.openPromoteBusinessPage);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -177,7 +177,7 @@ export function DirectorioPage() {
             </div>
             <Button
               size="lg"
-              onClick={openPostAd}
+              onClick={openPromoteBusinessPage}
               className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold gap-2 shrink-0 shadow-lg"
             >
               {tp('directory', 'promoteCta')}

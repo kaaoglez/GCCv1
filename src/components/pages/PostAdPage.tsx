@@ -19,6 +19,9 @@ import {
   Loader2,
   ArrowLeft,
   Home,
+  CreditCard,
+  ShieldCheck,
+  Banknote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,16 +44,25 @@ import { cn } from '@/lib/utils';
 import { navigateBack } from '@/hooks/use-navigation';
 import type { CategoryDTO, ListingTier } from '@/lib/types';
 
-const STEPS = [
+const STEPS_NORMAL = [
   { keyEs: 'Categoría', keyEn: 'Category' },
   { keyEs: 'Plan', keyEn: 'Plan' },
   { keyEs: 'Detalles', keyEn: 'Details' },
   { keyEs: 'Publicar', keyEn: 'Publish' },
 ];
 
+const STEPS_PAID = [
+  { keyEs: 'Categoría', keyEn: 'Category' },
+  { keyEs: 'Pago', keyEn: 'Payment' },
+  { keyEs: 'Detalles', keyEn: 'Details' },
+  { keyEs: 'Publicar', keyEn: 'Publish' },
+];
+
 export function PostAdPage() {
   const { locale, tp } = useI18n();
-  const { isPostAdPage, closePostAdPage } = useModalStore();
+  const isPostAdPage = useModalStore((s) => s.isPostAdPage);
+  const isPaymentOpen = useModalStore((s) => s.isPaymentOpen);
+  const closePostAdPage = useModalStore((s) => s.closePostAdPage);
   const [step, setStep] = useState(0);
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +73,13 @@ export function PostAdPage() {
   const [selectedParent, setSelectedParent] = useState<CategoryDTO | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryDTO | null>(null);
 
+  const isPaidCategory = !!selectedCategory?.isPaid;
+  const steps = isPaidCategory ? STEPS_PAID : STEPS_NORMAL;
+  const categoryPrice = selectedCategory?.price ?? 0;
+
+  // Payment state for paid categories
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+
   // Form state
   const [selectedTier, setSelectedTier] = useState<ListingTier>('FREE');
   const [title, setTitle] = useState('');
@@ -69,6 +88,7 @@ export function PostAdPage() {
   const [municipality, setMunicipality] = useState('');
   const [location, setLocation] = useState('');
   const [contactMethod, setContactMethod] = useState('message');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const [dragOver, setDragOver] = useState(false);
@@ -95,19 +115,21 @@ export function PostAdPage() {
     }
   }, [isPostAdPage, locale]);
 
-  // Auto-select minimum tier when category changes
-  useEffect(() => {
-    if (selectedCategory?.isPaid && selectedTier === 'FREE') {
-      setSelectedTier('HIGHLIGHTED');
-    }
-  }, [selectedCategory, selectedTier]);
-
   // Scroll to top when entering
   useEffect(() => {
     if (isPostAdPage) {
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     }
   }, [isPostAdPage]);
+
+  // When payment modal closes on a paid category step, mark as confirmed
+  const wasPaymentOpen = useRef(false);
+  useEffect(() => {
+    if (wasPaymentOpen.current && !isPaymentOpen && isPaidCategory && step === 1) {
+      setPaymentConfirmed(true);
+    }
+    if (isPaymentOpen) wasPaymentOpen.current = true;
+  }, [isPaymentOpen, isPaidCategory, step]);
 
   function resetForm() {
     setStep(0);
@@ -120,10 +142,12 @@ export function PostAdPage() {
     setMunicipality('');
     setLocation('');
     setContactMethod('message');
+    setWebsiteUrl('');
     setImages([]);
     setUploadingIds(new Set());
     setDragOver(false);
     setSuccess(false);
+    setPaymentConfirmed(false);
   }
 
   function handleClose() {
@@ -131,7 +155,7 @@ export function PostAdPage() {
     resetForm();
   }
 
-    const handleBack = () => {
+  const handleBack = () => {
     if (step > 0) {
       setStep(step - 1);
       return;
@@ -144,13 +168,32 @@ export function PostAdPage() {
     navigateBack();
   };
 
+  // For paid categories: payment was already confirmed in step 1
+  // For normal categories: only HIGHLIGHTED/VIP need payment
+  const needsPaymentAtPublish = !isPaidCategory && selectedTier !== 'FREE';
+  const planInfo = PRICING_PLANS.find((p) => p.id === selectedTier);
+  const planPaymentAmount = planInfo?.price ?? 0;
+
   async function handleSubmit() {
     if (!selectedCategory || !title || !description) return;
 
+    // For normal categories with paid tier, open payment modal
+    if (needsPaymentAtPublish) {
+      useModalStore.getState().openPayment({
+        type: 'LISTING_UPGRADE',
+        amount: planPaymentAmount,
+        listingTitle: title,
+      });
+      return;
+    }
+
+    // For paid categories: payment already confirmed in step 1
+    // For FREE: submit directly
     setSubmitting(true);
     try {
       const metadata: Record<string, unknown> = {};
       if (price) metadata.price = parseFloat(price);
+      if (websiteUrl) metadata.websiteUrl = websiteUrl;
 
       const res = await fetch('/api/listings', {
         method: 'POST',
@@ -182,7 +225,10 @@ export function PostAdPage() {
 
   const canNext = () => {
     if (step === 0) return !!selectedCategory;
-    if (step === 1) return !!selectedTier;
+    if (step === 1) {
+      if (isPaidCategory) return paymentConfirmed;
+      return !!selectedTier;
+    }
     if (step === 2) return !!title && !!description;
     return true;
   };
@@ -289,7 +335,7 @@ export function PostAdPage() {
 
         {/* Step Indicator */}
         <div className="flex items-center gap-2 mb-10">
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <div key={i} className="flex items-center gap-2 flex-1">
               <div
                 className={cn(
@@ -311,7 +357,7 @@ export function PostAdPage() {
               >
                 {locale === 'es' ? s.keyEs : s.keyEn}
               </span>
-              {i < STEPS.length - 1 && (
+              {i < steps.length - 1 && (
                 <div className="flex-1 h-px bg-border mx-1" />
               )}
             </div>
@@ -507,16 +553,14 @@ export function PostAdPage() {
               </div>
             )}
 
-            {/* ═══ STEP 2: Tier Selection ═══ */}
-            {step === 1 && (
+            {/* ═══ STEP 2: Tier Selection (normal categories only) ═══ */}
+            {step === 1 && !isPaidCategory && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
                   {tp('form', 'selectPlan')}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {PRICING_PLANS.filter(
-                    (p) => !selectedCategory?.isPaid || p.id !== 'FREE'
-                  ).map((plan) => {
+                  {PRICING_PLANS.map((plan) => {
                     const isSelected = selectedTier === plan.id;
                     const name =
                       locale === 'es' ? plan.nameEs : plan.nameEn;
@@ -549,9 +593,7 @@ export function PostAdPage() {
                                 ? 'circle'
                                 : plan.id === 'HIGHLIGHTED'
                                   ? 'sparkles'
-                                  : plan.id === 'VIP'
-                                    ? 'star'
-                                    : 'store',
+                                  : 'star',
                               undefined,
                               24
                             )}
@@ -586,6 +628,124 @@ export function PostAdPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* ═══ STEP 2: Payment (paid categories only) ═══ */}
+            {step === 1 && isPaidCategory && (
+              <div className="space-y-6 max-w-lg mx-auto">
+                {/* Category info */}
+                <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-5 flex items-center gap-4">
+                  <div
+                    className="flex items-center justify-center size-12 rounded-xl shrink-0"
+                    style={{
+                      backgroundColor: `${selectedCategory!.color}18`,
+                      color: selectedCategory!.color,
+                    }}
+                  >
+                    {getIcon(selectedCategory!.icon, undefined, 24)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-foreground">
+                      {locale === 'es' ? selectedCategory!.nameEs : selectedCategory!.nameEn}
+                    </p>
+                    {selectedParent && (
+                      <p className="text-xs text-muted-foreground">
+                        {locale === 'es' ? selectedParent.nameEs : selectedParent.nameEn}
+                      </p>
+                    )}
+                  </div>
+                  <Badge className="bg-amber-500 text-white border-amber-500 text-xs">
+                    {locale === 'es' ? 'Pago requerido' : 'Payment required'}
+                  </Badge>
+                </div>
+
+                {!paymentConfirmed ? (
+                  <>
+                    {/* Payment card */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-2xl border bg-card overflow-hidden shadow-sm"
+                    >
+                      <div className="p-6 text-center space-y-4">
+                        <div className="flex items-center justify-center size-16 rounded-2xl bg-primary/10 text-primary mx-auto">
+                          <CreditCard className="size-8" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            {locale === 'es'
+                              ? 'Importe a pagar por publicar en esta categoría'
+                              : 'Amount to pay to publish in this category'}
+                          </p>
+                          <p className="text-4xl font-extrabold text-primary mt-2">
+                            €{categoryPrice.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div className="p-5 space-y-3">
+                        <div className="flex items-start gap-3 text-sm">
+                          <ShieldCheck className="size-5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span className="text-muted-foreground">
+                            {locale === 'es'
+                              ? 'Pago seguro y protegido. Tu anuncio se publicará inmediatamente después de confirmar.'
+                              : 'Secure and protected payment. Your listing will be published immediately after confirmation.'}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-3 text-sm">
+                          <Banknote className="size-5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span className="text-muted-foreground">
+                            {locale === 'es'
+                              ? 'El precio lo establece el administrador de la plataforma.'
+                              : 'The price is set by the platform administrator.'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-5 pt-0">
+                        <Button
+                          onClick={() => {
+                            useModalStore.getState().openPayment({
+                              type: 'PAID_CATEGORY',
+                              amount: categoryPrice,
+                              listingTitle: locale === 'es' ? selectedCategory!.nameEs : selectedCategory!.nameEn,
+                            });
+                          }}
+                          size="lg"
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-2 text-base"
+                        >
+                          <CreditCard className="size-5" />
+                          {locale === 'es' ? `Pagar €${categoryPrice.toFixed(2)}` : `Pay €${categoryPrice.toFixed(2)}`}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </>
+                ) : (
+                  /* Payment confirmed */
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center space-y-4 py-6"
+                  >
+                    <div className="flex items-center justify-center size-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto">
+                      <Check className="size-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">
+                        {locale === 'es' ? '¡Pago confirmado!' : 'Payment confirmed!'}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {locale === 'es'
+                          ? 'Ahora puedes rellenar los datos de tu anuncio.'
+                          : 'Now you can fill in your listing details.'}
+                      </p>
+                    </div>
+                    <div className="text-2xl font-bold text-emerald-600">€{categoryPrice.toFixed(2)}</div>
+                  </motion.div>
+                )}
               </div>
             )}
 
@@ -703,6 +863,29 @@ export function PostAdPage() {
                       <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Website URL */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {locale === 'es' ? 'Sitio web' : 'Website'} {selectedTier !== 'FREE' && <span className="text-primary">*</span>}
+                  </label>
+                  <Input
+                    type="url"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    placeholder={
+                      locale === 'es'
+                        ? 'https://www.tu-sitio.com'
+                        : 'https://www.your-website.com'
+                    }
+                    className="h-11"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {locale === 'es'
+                      ? 'Añade el enlace de tu sitio web o red social (opcional para anuncios gratuitos)'
+                      : 'Add your website or social media link (optional for free listings)'}
+                  </p>
                 </div>
 
                 {/* Image upload */}
@@ -916,6 +1099,14 @@ export function PostAdPage() {
                         <span className="text-muted-foreground">{tp('form', 'contactMethod')}</span>
                         <span className="font-medium capitalize">{contactMethod}</span>
                       </div>
+                      {websiteUrl && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{locale === 'es' ? 'Sitio web' : 'Website'}</span>
+                          <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline truncate max-w-[200px]">
+                            {websiteUrl}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -939,7 +1130,9 @@ export function PostAdPage() {
 
             {step < 3 ? (
               <Button onClick={handleNext} disabled={!canNext()} size="lg" className="gap-2">
-                {tp('common', 'next')}
+                {isPaidCategory && step === 1 && !paymentConfirmed
+                  ? (locale === 'es' ? 'Pagar' : 'Pay')
+                  : tp('common', 'next')}
                 <ChevronRight className="size-4" />
               </Button>
             ) : (
@@ -949,7 +1142,13 @@ export function PostAdPage() {
                 size="lg"
                 className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               >
-                {submitting ? tp('common', 'loading') : tp('form', 'publish')}
+                {submitting ? (
+                  <><Loader2 className="size-4 animate-spin" />{tp('common', 'loading')}</>
+                ) : needsPaymentAtPublish ? (
+                  <>{tp('form', 'publish')} — €{planPaymentAmount}</>
+                ) : (
+                  tp('form', 'publish')
+                )}
               </Button>
             )}
           </div>

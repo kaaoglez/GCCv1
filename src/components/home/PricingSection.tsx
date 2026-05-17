@@ -5,6 +5,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Sparkles, Store, Star, Zap } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { SectionContainer } from '@/components/shared/SectionContainer';
 import { useI18n } from '@/hooks/use-i18n';
 import { PRICING_PLANS } from '@/lib/types';
+import { useModalStore } from '@/lib/modal-store';
 import type { PricingPlan } from '@/lib/types';
 
 /** Icon mapping for each plan tier */
@@ -25,6 +27,28 @@ const PLAN_ICONS: Record<string, React.ElementType> = {
 
 export function PricingSection() {
   const { locale, t, tp } = useI18n();
+  const openPromoteBusinessPage = useModalStore((s) => s.openPromoteBusinessPage);
+  const [plans, setPlans] = useState<PricingPlan[]>(PRICING_PLANS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/listing-plans');
+        if (res.ok) {
+          const data: PricingPlan[] = await res.json();
+          if (!cancelled && Array.isArray(data) && data.length > 0) {
+            setPlans(data);
+          }
+        }
+      } catch {
+        // Fall back to PRICING_PLANS constant
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <motion.div
@@ -38,7 +62,7 @@ export function PricingSection() {
         subtitle={t('pricing', 'subtitle')}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-stretch">
-          {PRICING_PLANS.map((plan, index) => (
+          {plans.map((plan, index) => (
             <PricingCard
               key={plan.id}
               plan={plan}
@@ -78,6 +102,7 @@ export function PricingSection() {
               <Button
                 size="lg"
                 className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold gap-2 shrink-0 shadow-lg"
+                onClick={openPromoteBusinessPage}
               >
                 {tp('directory', 'promoteCta')}
                 <Sparkles className="size-4" />

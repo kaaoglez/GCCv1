@@ -18,6 +18,7 @@ import type { ArticleDTO, ArticleCategory } from '@/lib/types';
 interface ArticleCardProps {
   article: ArticleDTO;
   className?: string;
+  onClick?: (article: ArticleDTO) => void;
 }
 
 const ARTICLE_CATEGORY_COLORS: Record<ArticleCategory, string> = {
@@ -29,7 +30,7 @@ const ARTICLE_CATEGORY_COLORS: Record<ArticleCategory, string> = {
   GENERAL: '#6B7280',
 };
 
-export function ArticleCard({ article, className }: ArticleCardProps) {
+export function ArticleCard({ article, className, onClick }: ArticleCardProps) {
   const { locale } = useI18n();
   const openArticleDetail = useModalStore((s) => s.openArticleDetail);
   const categoryInfo = ARTICLE_CATEGORIES[article.category];
@@ -57,7 +58,7 @@ export function ArticleCard({ article, className }: ArticleCardProps) {
           'hover:shadow-lg',
           className
         )}
-        onClick={() => openArticleDetail(article)}
+        onClick={() => onClick ? onClick(article) : openArticleDetail(article)}
       >
         {/* Image */}
         <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">

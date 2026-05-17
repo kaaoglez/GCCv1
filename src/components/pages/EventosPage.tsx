@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -39,7 +39,7 @@ import { EventCard } from '@/components/shared/EventCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useI18n } from '@/hooks/use-i18n';
 import { useModalStore } from '@/lib/modal-store';
-import { navigateBack } from '@/hooks/use-navigation';
+import { navigateBack, replaceNavigationState } from '@/hooks/use-navigation';
 import { MUNICIPALITIES, type EventCategory } from '@/lib/types';
 import { EVENT_CATEGORIES } from '@/lib/constants';
 import type { EventDTO, PaginatedResponse } from '@/lib/types';
@@ -61,6 +61,11 @@ export function EventosPage() {
   const { locale, tp } = useI18n();
   const setCurrentView = useModalStore((s) => s.setCurrentView);
   const openEventDetail = useModalStore((s) => s.openEventDetail);
+  const eventosPage = useModalStore((s) => s.eventosPage);
+  const setEventosPage = useModalStore((s) => s.setEventosPage);
+  const currentView = useModalStore((s) => s.currentView);
+  const isEventFullView = useModalStore((s) => s.isEventFullView);
+  const isEventDetailOpen = useModalStore((s) => s.isEventDetailOpen);
 
   // ── Filter State ──────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -76,16 +81,26 @@ export function EventosPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // ── Sync page from store on mount ──────────────────────
+  useEffect(() => {
+    if (eventosPage > 1) setPage(eventosPage);
+  }, []);
+
   // ── Debounced Search ──────────────────────────────────────
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const prevSearchRef = useRef<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
+      if (prevSearchRef.current !== null && prevSearchRef.current !== search) {
+        setPage(1);
+        setEventosPage(1);
+      }
+      prevSearchRef.current = search;
     }, 400);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, setEventosPage]);
 
   // ── Build query params ───────────────────────────────────
   const queryParams = useMemo(() => {
@@ -123,25 +138,59 @@ export function EventosPage() {
     fetchEvents();
   }, [fetchEvents]);
 
+  // ── Sync page number to history ──
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (currentView === 'eventos' && !isEventFullView && !isEventDetailOpen) {
+      replaceNavigationState();
+    }
+  }, [page, currentView, isEventFullView, isEventDetailOpen]);
+
+  // ── Persist page to sessionStorage (for reload) ──
+  useEffect(() => {
+    if (currentView === 'eventos') {
+      sessionStorage.setItem('gcc_eventos_page', String(page));
+    }
+  }, [page, currentView]);
+
+  // ── Scroll Restoration ──
+  useEffect(() => {
+    if (!loading) {
+      const y = (window as unknown as Record<string, number>).__gccRestoreScroll;
+      if (y && y > 0) {
+        (window as unknown as Record<string, number>).__gccRestoreScroll = 0;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+          });
+        });
+      }
+    }
+  }, [loading]);
+
   // ── Handlers ─────────────────────────────────────────────
   const handleCategoryChange = (value: string) => {
     setCategory(value === '_all' ? '' : value);
-    setPage(1);
+    setPage(1); setEventosPage(1);
   };
 
   const handleMunicipalityChange = (value: string) => {
     setMunicipality(value === '_all' ? '' : value);
-    setPage(1);
+    setPage(1); setEventosPage(1);
   };
 
   const handleFreeToggle = (checked: boolean) => {
     setIsFree(checked);
-    setPage(1);
+    setPage(1); setEventosPage(1);
   };
 
   const handleEcoToggle = (checked: boolean) => {
     setIsEco(checked);
-    setPage(1);
+    setPage(1); setEventosPage(1);
   };
 
   const clearFilters = () => {
@@ -150,7 +199,7 @@ export function EventosPage() {
     setMunicipality('');
     setIsFree(false);
     setIsEco(false);
-    setPage(1);
+    setPage(1); setEventosPage(1);
   };
 
   const hasActiveFilters =
@@ -175,6 +224,12 @@ export function EventosPage() {
       pages.push(totalPages);
     }
     return pages;
+  };
+
+  // ── Event Card Click ────────────────────────────────
+  const handleEventClick = (event: EventDTO) => {
+    openEventDetail(event);
+    replaceNavigationState();
   };
 
   // ── Render ───────────────────────────────────────────────
@@ -360,7 +415,7 @@ export function EventosPage() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {events.map((event) => (
-              <EventCard key={event.id} event={event} />
+              <EventCard key={event.id} event={event} onClick={handleEventClick} />
             ))}
           </div>
 
@@ -373,7 +428,7 @@ export function EventosPage() {
                 className="size-9"
                 disabled={page <= 1}
                 onClick={() => {
-                  setPage((p) => p - 1);
+                  setPage((p) => p - 1); setEventosPage((p) => p - 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               >
@@ -395,7 +450,7 @@ export function EventosPage() {
                     size="icon"
                     className="size-9"
                     onClick={() => {
-                      setPage(p);
+                      setPage(p); setEventosPage(p);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                   >
@@ -410,7 +465,7 @@ export function EventosPage() {
                 className="size-9"
                 disabled={page >= totalPages}
                 onClick={() => {
-                  setPage((p) => p + 1);
+                  setPage((p) => p + 1); setEventosPage((p) => p + 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               >

@@ -48,7 +48,7 @@ export default function Home() {
     __registerHistoryPush(pushNavigationState);
   }, []);
 
-  const { data: session } = useSession();
+  const { data: session, status } = useSession({ required: false });
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const currentView = useModalStore((s) => s.currentView);
   const isAdminView = useModalStore((s) => s.isAdminView);
@@ -84,14 +84,43 @@ export default function Home() {
     if (isPromoteBusinessPage) {
       return <PromoteBusinessPage />;
     }
+    // Listing full view: keep AnunciosPage mounted but hidden to preserve scroll/page state
     if (isListingFullView) {
-      return <ListingFullView key={`listing-${selectedListing?.id ?? 'none'}`} />;
+      return (
+        <>
+          {currentView === 'anuncios' && (
+            <div style={{ display: 'none' }} aria-hidden="true">
+              <PageWithSidebar><AnunciosPage /></PageWithSidebar>
+            </div>
+          )}
+          <ListingFullView key={`listing-${selectedListing?.id ?? 'none'}`} />
+        </>
+      );
     }
+    // Event full view: keep EventosPage mounted but hidden
     if (isEventFullView) {
-      return <EventFullView key={`event-${selectedEvent?.id ?? 'none'}`} />;
+      return (
+        <>
+          {currentView === 'eventos' && (
+            <div style={{ display: 'none' }} aria-hidden="true">
+              <PageWithSidebar><EventosPage /></PageWithSidebar>
+            </div>
+          )}
+          <EventFullView key={`event-${selectedEvent?.id ?? 'none'}`} />
+        </>
+      );
     }
     if (isArticleReadingView) {
-      return <ArticleReadingView />;
+      return (
+        <>
+          {currentView === 'news' && (
+            <div style={{ display: 'none' }} aria-hidden="true">
+              <PageWithSidebar><NoticiasPage /></PageWithSidebar>
+            </div>
+          )}
+          <ArticleReadingView />
+        </>
+      );
     }
 
     if (currentView === 'home') {

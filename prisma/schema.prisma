@@ -250,6 +250,28 @@ model FlyerPlan {
   updatedAt      DateTime @updatedAt
 }
 
+model ListingPlan {
+  id             String   @id @default(cuid())
+  tier           String   @unique
+  nameEs         String
+  nameEn         String
+  price          Float    @default(0)
+  priceLabelEs   String   @default("/anuncio")
+  priceLabelEn   String   @default("/listing")
+  badgeEs        String   @default("")
+  badgeEn        String   @default("")
+  color          String   @default("#6B7280")
+  featuresEs     String   @default("[]")
+  featuresEn     String   @default("[]")
+  durationDays   Int      @default(30)
+  maxImages      Int      @default(3)
+  isPopular      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model AdBanner {
   id            String    @id @default(cuid())
   position      String    // leaderboard, sidebar, news, directory, between_sections

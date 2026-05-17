@@ -54,6 +54,8 @@ interface ModalState {
   closePromoteBusinessPage: () => void;
 
   // Listing Detail Modal (overlay — no history push)
+  // openListingDetail saves scrollY so pushNavigationState uses it when
+  // navigating to full view (Dialog overflow:hidden kills window.scrollY).
   selectedListing: ListingDTO | null;
   isListingDetailOpen: boolean;
   openListingDetail: (listing: ListingDTO) => void;
@@ -67,12 +69,14 @@ interface ModalState {
   closeSearch: () => void;
 
   // Event Detail Modal (overlay — no history push)
+  // openEventDetail saves scrollY (same pattern as openListingDetail)
   selectedEvent: EventDTO | null;
   isEventDetailOpen: boolean;
   openEventDetail: (event: EventDTO) => void;
   closeEventDetail: () => void;
 
   // Article Detail Modal (overlay — no history push)
+  // openArticleDetail saves scrollY (same pattern as openListingDetail)
   selectedArticle: ArticleDTO | null;
   isArticleDetailOpen: boolean;
   openArticleDetail: (article: ArticleDTO) => void;
@@ -112,6 +116,22 @@ interface ModalState {
   openMessage: (config: { receiverId: string; receiverName: string; listingId?: string; listingTitle?: string; listingImage?: string }) => void;
   closeMessage: () => void;
 
+  // Anuncios page number — preserved across full-view navigation
+  anunciosPage: number;
+  setAnunciosPage: (page: number) => void;
+
+  // Anuncios scroll position — saved BEFORE opening listing detail modal
+  anunciosScrollY: number;
+  setAnunciosScrollY: (y: number) => void;
+
+  // Eventos page number — preserved across full-view navigation
+  eventosPage: number;
+  setEventosPage: (page: number) => void;
+
+  // Noticias page number — preserved across full-view navigation
+  noticiasPage: number;
+  setNoticiasPage: (page: number) => void;
+
   // Listings refresh key — bumped when listing data changes (status, delete, etc.)
   listingsRefreshKey: number;
   bumpListingsRefreshKey: () => void;
@@ -149,15 +169,18 @@ export const useModalStore = create<ModalState>()((set) => ({
   // ── Promote Business Page: full-page, push on OPEN only ──
   isPromoteBusinessPage: false,
   openPromoteBusinessPage: () =>
-    { set({ isPromoteBusinessPage: true, isPostAdPage: false }); tryPushHistory(); },
+    { set({ isPromoteBusinessPage: true, isPostAdPage: false }); tryPushHistory(); window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); },
   closePromoteBusinessPage: () =>
     { set({ isPromoteBusinessPage: false }); },
 
   // ── Listing Detail Modal: overlay, no history ──
   selectedListing: null,
   isListingDetailOpen: false,
-  openListingDetail: (listing) =>
-    set({ selectedListing: listing, isListingDetailOpen: true }),
+  openListingDetail: (listing) => {
+    // Save scroll position BEFORE Dialog opens (sets overflow:hidden → scrollY=0)
+    (window as unknown as Record<string, number>).__gccAnunciosScrollY = window.scrollY;
+    set({ selectedListing: listing, isListingDetailOpen: true });
+  },
   closeListingDetail: () =>
     set({ selectedListing: null, isListingDetailOpen: false }),
 
@@ -173,16 +196,20 @@ export const useModalStore = create<ModalState>()((set) => ({
   // ── Event Detail Modal: overlay, no history ──
   selectedEvent: null,
   isEventDetailOpen: false,
-  openEventDetail: (event) =>
-    set({ selectedEvent: event, isEventDetailOpen: true }),
+  openEventDetail: (event) => {
+    (window as unknown as Record<string, number>).__gccEventosScrollY = window.scrollY;
+    set({ selectedEvent: event, isEventDetailOpen: true });
+  },
   closeEventDetail: () =>
     set({ selectedEvent: null, isEventDetailOpen: false }),
 
   // ── Article Detail Modal: overlay, no history ──
   selectedArticle: null,
   isArticleDetailOpen: false,
-  openArticleDetail: (article) =>
-    set({ selectedArticle: article, isArticleDetailOpen: true }),
+  openArticleDetail: (article) => {
+    (window as unknown as Record<string, number>).__gccNoticiasScrollY = window.scrollY;
+    set({ selectedArticle: article, isArticleDetailOpen: true });
+  },
   closeArticleDetail: () =>
     set({ selectedArticle: null, isArticleDetailOpen: false }),
 
@@ -236,6 +263,22 @@ export const useModalStore = create<ModalState>()((set) => ({
   isMessageOpen: false,
   openMessage: (config) => set({ messageConfig: config, isMessageOpen: true }),
   closeMessage: () => set({ messageConfig: null, isMessageOpen: false }),
+
+  // ── Anuncios page number: NO auto-push (callers control history) ──
+  anunciosPage: 1,
+  setAnunciosPage: (page) => set({ anunciosPage: page }),
+
+  // ── Eventos page number: NO auto-push (callers control history) ──
+  eventosPage: 1,
+  setEventosPage: (page) => set({ eventosPage: page }),
+
+  // ── Noticias page number: NO auto-push (callers control history) ──
+  noticiasPage: 1,
+  setNoticiasPage: (page) => set({ noticiasPage: page }),
+
+  // ── Anuncios scroll Y: saved before opening detail modal ──
+  anunciosScrollY: 0,
+  setAnunciosScrollY: (y) => set({ anunciosScrollY: y }),
 
   // ── Listings refresh key ──
   listingsRefreshKey: 0,

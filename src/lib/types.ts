@@ -43,14 +43,14 @@ export const ROLE_LABELS: Record<UserRole, { es: string; en: string; color: stri
 };
 
 /** Which admin pages each role can access */
-export type AdminPageKey = 'dashboard' | 'listings' | 'promotions' | 'users' | 'categories' | 'payments' | 'flyers' | 'plans' | 'appearance';
+export type AdminPageKey = 'dashboard' | 'listings' | 'promotions' | 'users' | 'categories' | 'payments' | 'flyers' | 'plans' | 'listingPlans' | 'appearance';
 
 export const ROLE_PAGE_PERMISSIONS: Record<UserRole, AdminPageKey[]> = {
   MEMBER: [],
   BUSINESS: [],
   MODERATOR: ['dashboard', 'listings', 'users', 'categories'],
-  ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments', 'flyers', 'plans', 'appearance'],
-  SUPER_ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments', 'flyers', 'plans', 'appearance'],
+  ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments', 'flyers', 'plans', 'listingPlans', 'appearance'],
+  SUPER_ADMIN: ['dashboard', 'listings', 'promotions', 'users', 'categories', 'payments', 'flyers', 'plans', 'listingPlans', 'appearance'],
 };
 
 export type Language = 'ES' | 'EN';

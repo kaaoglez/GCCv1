@@ -22,6 +22,7 @@ const allNavItems: { key: AdminPageKey; label: string; icon: React.ReactNode }[]
   { key: 'payments', label: 'Pagos', icon: <CreditCard className="w-5 h-5" /> },
   { key: 'flyers', label: 'Flyers', icon: <Newspaper className="w-5 h-5" /> },
   { key: 'plans', label: 'Planes Folletos', icon: <Tag className="w-5 h-5" /> },
+  { key: 'listingPlans', label: 'Planes Anuncios', icon: <Tag className="w-5 h-5" /> },
   { key: 'appearance', label: 'Apariencia', icon: <Palette className="w-5 h-5" /> },
 ];
 
@@ -182,6 +183,7 @@ export function AdminLayout({ children, onBack }: { children: React.ReactNode; o
     payments: 'Pagos',
     flyers: 'Flyers',
     plans: 'Planes de Folletos',
+    listingPlans: 'Planes de Anuncios',
     appearance: 'Apariencia',
   };
 

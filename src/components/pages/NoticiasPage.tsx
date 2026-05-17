@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,8 @@ import { ArticleCard } from '@/components/shared/ArticleCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { AdBannerSlot } from '@/components/shared/AdBannerSlot';
 import { useI18n } from '@/hooks/use-i18n';
+import { useModalStore } from '@/lib/modal-store';
+import { replaceNavigationState } from '@/hooks/use-navigation';
 import { ARTICLE_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { ArticleDTO, PaginatedResponse } from '@/lib/types';
@@ -39,6 +41,11 @@ const ITEMS_PER_PAGE = 9;
 
 export function NoticiasPage() {
   const { locale, tp } = useI18n();
+  const noticiasPage = useModalStore((s) => s.noticiasPage);
+  const setNoticiasPage = useModalStore((s) => s.setNoticiasPage);
+  const currentView = useModalStore((s) => s.currentView);
+  const isArticleReadingView = useModalStore((s) => s.isArticleReadingView);
+  const isArticleDetailOpen = useModalStore((s) => s.isArticleDetailOpen);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -51,6 +58,21 @@ export function NoticiasPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
+
+  // ── Sync page from store on mount ──────────────────────
+  useEffect(() => {
+    if (noticiasPage > 1) setPage(noticiasPage);
+  }, []);
+
+  // ── Search debounce ────────────────────────────────────
+  const prevSearchRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevSearchRef.current !== null && prevSearchRef.current !== search) {
+      setPage(1);
+      setNoticiasPage(1);
+    }
+    prevSearchRef.current = search;
+  }, [search]);
 
   // Fetch articles
   const fetchArticles = useCallback(async () => {
@@ -80,9 +102,43 @@ export function NoticiasPage() {
     fetchArticles();
   }, [fetchArticles]);
 
+  // ── Sync page number to history ──
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (currentView === 'news' && !isArticleReadingView && !isArticleDetailOpen) {
+      replaceNavigationState();
+    }
+  }, [page, currentView, isArticleReadingView, isArticleDetailOpen]);
+
+  // ── Persist page to sessionStorage (for reload) ──
+  useEffect(() => {
+    if (currentView === 'news') {
+      sessionStorage.setItem('gcc_noticias_page', String(page));
+    }
+  }, [page, currentView]);
+
+  // ── Scroll Restoration ──
+  useEffect(() => {
+    if (!loading) {
+      const y = (window as unknown as Record<string, number>).__gccRestoreScroll;
+      if (y && y > 0) {
+        (window as unknown as Record<string, number>).__gccRestoreScroll = 0;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+          });
+        });
+      }
+    }
+  }, [loading]);
+
   // Reset page on filter change
   useEffect(() => {
-    setPage(1);
+    setPage(1); setNoticiasPage(1);
   }, [category, search]);
 
   const handleSearch = () => {
@@ -281,7 +337,7 @@ export function NoticiasPage() {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => { setPage((p) => Math.max(1, p - 1)); setNoticiasPage((p) => Math.max(1, p - 1)); }}
                   className={cn(
                     'cursor-pointer',
                     page <= 1 && 'pointer-events-none opacity-50'
@@ -298,7 +354,7 @@ export function NoticiasPage() {
                   <PaginationItem key={p}>
                     <PaginationLink
                       isActive={p === page}
-                      onClick={() => setPage(p as number)}
+                      onClick={() => { setPage(p as number); setNoticiasPage(p as number); }}
                       className="cursor-pointer"
                     >
                       {p}
@@ -310,7 +366,10 @@ export function NoticiasPage() {
               <PaginationItem>
                 <PaginationNext
                   onClick={() =>
-                    setPage((p) => Math.min(totalPages, p + 1))
+                    {
+                      setPage((p) => Math.min(totalPages, p + 1));
+                      setNoticiasPage((p) => Math.min(totalPages, p + 1));
+                    }
                   }
                   className={cn(
                     'cursor-pointer',

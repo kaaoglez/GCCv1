@@ -18,9 +18,10 @@ import type { EventDTO } from '@/lib/types';
 interface EventCardProps {
   event: EventDTO;
   className?: string;
+  onClick?: (event: EventDTO) => void;
 }
 
-export function EventCard({ event, className }: EventCardProps) {
+export function EventCard({ event, className, onClick }: EventCardProps) {
   const { locale } = useI18n();
   const openEventDetail = useModalStore((s) => s.openEventDetail);
   const { day, month } = formatCalendarDate(event.startDate, locale);
@@ -46,7 +47,7 @@ export function EventCard({ event, className }: EventCardProps) {
           'hover:shadow-lg',
           className
         )}
-        onClick={() => openEventDetail(event)}
+        onClick={() => onClick ? onClick(event) : openEventDetail(event)}
       >
         {/* Calendar date + Image row */}
         <div className="flex">

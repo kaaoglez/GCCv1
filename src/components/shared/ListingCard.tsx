@@ -33,6 +33,9 @@ export function ListingCard({ listing, className, onClick }: ListingCardProps) {
   const { locale } = useI18n();
 
   const handleClick = () => {
+    // Save scroll position before opening popup (Dialog sets overflow:hidden)
+    // This is used by pushNavigationState when navigating to full view
+    (window as unknown as Record<string, number>).__gccAnunciosScrollY = window.scrollY;
     if (onClick) {
       onClick(listing);
     } else {

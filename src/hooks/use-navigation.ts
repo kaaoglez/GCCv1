@@ -53,10 +53,17 @@ export interface HistoryState {
   searchQuery: string;
   searchCategoryId: string | null;
   editingFlyerId: string | null;
+  anunciosPage: number;
+  eventosPage: number;
+  noticiasPage: number;
+  scrollY: number;
 }
 
 function readStoreState(): HistoryState {
   const s = useModalStore.getState();
+  // Use saved scrollY when available (set before Dialog opens, since
+  // Radix Dialog sets overflow:hidden which resets window.scrollY to 0)
+  const savedScroll = (window as unknown as Record<string, number>).__gccAnunciosScrollY;
   return {
     view: s.currentView,
     selectedCategoryId: s.selectedCategoryId,
@@ -72,6 +79,10 @@ function readStoreState(): HistoryState {
     searchQuery: s.searchQuery,
     searchCategoryId: s.searchCategoryId,
     editingFlyerId: s.editingFlyerId,
+    anunciosPage: s.anunciosPage,
+    eventosPage: s.eventosPage,
+    noticiasPage: s.noticiasPage,
+    scrollY: typeof savedScroll === 'number' ? savedScroll : window.scrollY,
   };
 }
 
@@ -89,12 +100,24 @@ function stateToHash(state: HistoryState): string {
   if (state.isArticleReadingView && state.articleId) return `#/articulo/${state.articleId}`;
   if (state.isPostAdPage) return `#/publicar`;
   if (state.isPromoteBusinessPage) return `#/promocionar`;
+  // Include page number in hash for paginated sections
+  if (state.view === 'anuncios' && state.anunciosPage > 1) {
+    return `#/anuncios?page=${state.anunciosPage}`;
+  }
+  if (state.view === 'eventos' && state.eventosPage > 1) {
+    return `#/eventos?page=${state.eventosPage}`;
+  }
+  if (state.view === 'news' && state.noticiasPage > 1) {
+    return `#/news?page=${state.noticiasPage}`;
+  }
   return `#/${state.view}`;
 }
 
 // ── Push: new entry in history (user navigated forward) ──
 export function pushNavigationState() {
   const state = readStoreState();
+  // Clear saved scrollY after consuming it (only relevant for forward navigation)
+  delete (window as unknown as Record<string, number>).__gccAnunciosScrollY;
   updateTitle(state.view, {
     listing: state.isListingFullView ? useModalStore.getState().selectedListing?.title : undefined,
     event: state.isEventFullView ? useModalStore.getState().selectedEvent?.title : undefined,
@@ -125,6 +148,10 @@ export function navigateTo(view: PageView, extra?: { categoryId?: string }) {
     if (extra?.categoryId !== undefined) {
       store.setSelectedCategoryId(extra.categoryId);
     }
+    // Reset pagination when navigating from NavBar (fresh visit)
+    if (view === 'anuncios') store.setAnunciosPage(1);
+    if (view === 'eventos') store.setEventosPage(1);
+    if (view === 'news') store.setNoticiasPage(1);
   } finally {
     __skipHistoryPush(false);
   }
@@ -172,6 +199,9 @@ function restoreState(state: HistoryState) {
     if (store.currentView !== state.view) store.setCurrentView(state.view);
     if (store.selectedCategoryId !== state.selectedCategoryId) store.setSelectedCategoryId(state.selectedCategoryId);
     if (store.editingFlyerId !== state.editingFlyerId) store.setEditingFlyerId(state.editingFlyerId);
+    if (store.anunciosPage !== state.anunciosPage) store.setAnunciosPage(state.anunciosPage);
+    if (store.eventosPage !== state.eventosPage) store.setEventosPage(state.eventosPage);
+    if (store.noticiasPage !== state.noticiasPage) store.setNoticiasPage(state.noticiasPage);
 
     // Post Ad Page
     if (state.isPostAdPage !== store.isPostAdPage) {
@@ -250,7 +280,25 @@ function restoreState(state: HistoryState) {
     __skipHistoryPush(false);
   }
 
-  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  // Scroll: scroll to top when opening full views
+  // When going back to anuncios/eventos/news, DON'T scroll here — set a global
+  // flag so those pages can restore scroll AFTER their data loads and DOM is painted.
+  const goingBackToList = (state.view === 'anuncios' && !state.isListingFullView)
+    || (state.view === 'eventos' && !state.isEventFullView)
+    || (state.view === 'news' && !state.isArticleReadingView);
+  if (goingBackToList) {
+    if (state.scrollY > 0) {
+      (window as unknown as Record<string, number>).__gccRestoreScroll = state.scrollY;
+    }
+  } else {
+    const goingBack = !state.isListingFullView && !state.isEventFullView && !state.isArticleReadingView
+      && !state.isPostAdPage && !state.isPromoteBusinessPage && !state.isSearchOpen;
+    if (goingBack && state.scrollY > 0) {
+      window.scrollTo({ top: state.scrollY, behavior: 'instant' as ScrollBehavior });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }
 }
 
 // ── Fetch helpers for restoring views on reload/popstate ──
@@ -313,6 +361,8 @@ function parseHashToState(): HistoryState | null {
       searchQuery: '',
       searchCategoryId: null,
       editingFlyerId: null,
+      anunciosPage: 1,
+      scrollY: 0,
     };
   }
 
@@ -334,6 +384,8 @@ function parseHashToState(): HistoryState | null {
       searchQuery: '',
       searchCategoryId: null,
       editingFlyerId: null,
+      anunciosPage: 1,
+      scrollY: 0,
     };
   }
 
@@ -355,6 +407,8 @@ function parseHashToState(): HistoryState | null {
       searchQuery: '',
       searchCategoryId: null,
       editingFlyerId: null,
+      anunciosPage: 1,
+      scrollY: 0,
     };
   }
 
@@ -375,14 +429,34 @@ function parseHashToState(): HistoryState | null {
       searchQuery: '',
       searchCategoryId: null,
       editingFlyerId: null,
+      anunciosPage: 1,
+      scrollY: 0,
     };
   }
 
-  // Regular page: #/anuncios, #/categorias, etc.
-  const pageMatch = hash.replace('#/', '');
-  if (pageMatch && VALID_VIEWS.includes(pageMatch as PageView)) {
+  // Regular page: #/anuncios, #/anuncios?page=3, #/categorias, etc.
+  const rawPath = hash.replace('#/', '');
+  // Split off query string (e.g. 'anuncios?page=3' → 'anuncios' + '?page=3')
+  const [pathOnly, queryString] = rawPath.split('?');
+  if (pathOnly && VALID_VIEWS.includes(pathOnly as PageView)) {
+    // Recover page number from URL query string, then sessionStorage fallback
+    let recoveredPage = 1;
+    let recoveredEventosPage = 1;
+    let recoveredNoticiasPage = 1;
+    if (pathOnly === 'anuncios') {
+      const pageParam = new URLSearchParams(queryString || '').get('page');
+      recoveredPage = pageParam ? (parseInt(pageParam, 10) || 1) : (parseInt(sessionStorage.getItem('gcc_anuncios_page') || '1', 10) || 1);
+    }
+    if (pathOnly === 'eventos') {
+      const pageParam = new URLSearchParams(queryString || '').get('page');
+      recoveredEventosPage = pageParam ? (parseInt(pageParam, 10) || 1) : (parseInt(sessionStorage.getItem('gcc_eventos_page') || '1', 10) || 1);
+    }
+    if (pathOnly === 'news') {
+      const pageParam = new URLSearchParams(queryString || '').get('page');
+      recoveredNoticiasPage = pageParam ? (parseInt(pageParam, 10) || 1) : (parseInt(sessionStorage.getItem('gcc_noticias_page') || '1', 10) || 1);
+    }
     return {
-      view: pageMatch as PageView,
+      view: pathOnly as PageView,
       selectedCategoryId: null,
       isPostAdPage: false,
       isPromoteBusinessPage: false,
@@ -396,6 +470,10 @@ function parseHashToState(): HistoryState | null {
       searchQuery: '',
       searchCategoryId: null,
       editingFlyerId: null,
+      anunciosPage: recoveredPage,
+      eventosPage: recoveredEventosPage,
+      noticiasPage: recoveredNoticiasPage,
+      scrollY: 0,
     };
   }
 
@@ -413,6 +491,19 @@ function getInitialState(): HistoryState | null {
         return hs;
       }
       if (!hs.isListingFullView && !hs.isEventFullView && !hs.isArticleReadingView) {
+        // Fallback: restore page from sessionStorage if history.state doesn't have it
+        if (hs.view === 'anuncios' && (!hs.anunciosPage || hs.anunciosPage < 1)) {
+          const savedPage = parseInt(sessionStorage.getItem('gcc_anuncios_page') || '1', 10);
+          if (savedPage > 1) hs.anunciosPage = savedPage;
+        }
+        if (hs.view === 'eventos' && (!hs.eventosPage || hs.eventosPage < 1)) {
+          const savedPage = parseInt(sessionStorage.getItem('gcc_eventos_page') || '1', 10);
+          if (savedPage > 1) hs.eventosPage = savedPage;
+        }
+        if (hs.view === 'news' && (!hs.noticiasPage || hs.noticiasPage < 1)) {
+          const savedPage = parseInt(sessionStorage.getItem('gcc_noticias_page') || '1', 10);
+          if (savedPage > 1) hs.noticiasPage = savedPage;
+        }
         return hs;
       }
     }
@@ -429,6 +520,12 @@ export function useNavigation() {
   const initialized = useRef(false);
 
   useEffect(() => {
+    // Prevent browser from auto-scrolling on hash changes / popstate
+    // We handle all scroll restoration manually
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
     if (!initialized.current) {
       initialized.current = true;
 
@@ -443,6 +540,9 @@ export function useNavigation() {
             currentView: savedState.view,
             selectedCategoryId: savedState.selectedCategoryId,
             editingFlyerId: savedState.editingFlyerId,
+            anunciosPage: savedState.anunciosPage,
+            eventosPage: savedState.eventosPage,
+            noticiasPage: savedState.noticiasPage,
             // Close all overlays / other views
             isListingDetailOpen: false,
             isEventDetailOpen: false,

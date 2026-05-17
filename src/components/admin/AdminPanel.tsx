@@ -10,6 +10,7 @@ import { AdminUsers } from './AdminUsers';
 import { AdminCategories } from './AdminCategories';
 import { AdminPayments } from './AdminPayments';
 import { AdminFlyers } from './AdminFlyers';
+import { AdminAppearance } from './AdminAppearance';
 
 const pages: Record<string, React.FC> = {
   dashboard: AdminDashboard,
@@ -19,6 +20,8 @@ const pages: Record<string, React.FC> = {
   categories: AdminCategories,
   payments: AdminPayments,
   flyers: AdminFlyers,
+  plans: () => <div className="text-muted-foreground">Planes de folletos - próximamente</div>,
+  appearance: AdminAppearance,
 };
 
 export function AdminPanel() {

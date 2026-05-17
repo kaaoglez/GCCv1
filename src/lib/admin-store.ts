@@ -76,12 +76,9 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     const { userRole } = get();
     if (userRole) {
       const allowed = ROLE_PAGE_PERMISSIONS[userRole] || [];
-      if (allowed.includes(page)) {
-        set({ activePage: page });
-      }
-    } else {
-      set({ activePage: page });
+      if (!allowed.includes(page)) return; // blocked
     }
+    set({ activePage: page });
   },
 
   setSelectedListing: (listing) => set({ selectedListing: listing }),

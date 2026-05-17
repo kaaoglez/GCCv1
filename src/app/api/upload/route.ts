@@ -8,16 +8,17 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const MAX_SIZE_FLYER = 10 * 1024 * 1024; // 10MB for flyers
 
-/** Purposes: 'avatar' (default, 2MB) | 'listing' (5MB) | 'flyer' (10MB) */
+/** Purposes: 'avatar' (default, 2MB) | 'listing' (5MB) | 'flyer' (10MB) | 'hero' (5MB) */
 function getMaxSize(purpose: string): number {
   if (purpose === 'flyer') return MAX_SIZE_FLYER;
-  if (purpose === 'listing') return 5 * 1024 * 1024; // 5MB for listings
+  if (purpose === 'listing' || purpose === 'hero') return 5 * 1024 * 1024; // 5MB
   return MAX_SIZE;
 }
 
 function getPrefix(purpose: string): string {
   if (purpose === 'flyer') return 'flyer';
   if (purpose === 'listing') return 'listing';
+  if (purpose === 'hero') return 'hero';
   return 'avatar';
 }
 

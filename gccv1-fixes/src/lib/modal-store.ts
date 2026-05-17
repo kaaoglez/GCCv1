@@ -23,7 +23,7 @@ export function __skipHistoryPush(suppress: boolean) { _skipPush = suppress; }
 
 function tryPushHistory() { if (!_skipPush) _pushHistory?.(); }
 
-export type PageView = 'home' | 'anuncios' | 'categorias' | 'eventos' | 'news' | 'directory' | 'recycling' | 'flyers' | 'messages' | 'perfil' | 'mis-anuncios' | 'mis-flyers' | 'crear-folleto' | 'favoritos';
+export type PageView = 'home' | 'anuncios' | 'categorias' | 'eventos' | 'news' | 'directory' | 'recycling' | 'messages' | 'perfil' | 'mis-anuncios' | 'favoritos';
 
 interface ModalState {
   // Current page view (client-side routing)
@@ -47,11 +47,6 @@ interface ModalState {
   isPostAdPage: boolean;
   openPostAdPage: () => void;
   closePostAdPage: () => void;
-
-  // Promote Business Page (full-page nav — pushes history on open only)
-  isPromoteBusinessPage: boolean;
-  openPromoteBusinessPage: () => void;
-  closePromoteBusinessPage: () => void;
 
   // Listing Detail Modal (overlay — no history push)
   selectedListing: ListingDTO | null;
@@ -87,13 +82,11 @@ interface ModalState {
   isListingFullView: boolean;
   openListingFullView: () => void;
   closeListingFullView: () => void;
-  setListingForFullView: (listing: ListingDTO) => void;
 
   // Event Full View (full-page nav — pushes history on open only)
   isEventFullView: boolean;
   openEventFullView: () => void;
   closeEventFullView: () => void;
-  setEventForFullView: (event: EventDTO) => void;
 
   // Auth Modal (overlay — no history push)
   isAuthOpen: boolean;
@@ -115,10 +108,6 @@ interface ModalState {
   // Listings refresh key — bumped when listing data changes (status, delete, etc.)
   listingsRefreshKey: number;
   bumpListingsRefreshKey: () => void;
-
-  // Editing flyer ID — set before navigating to crear-folleto page
-  editingFlyerId: string | null;
-  setEditingFlyerId: (id: string | null) => void;
 }
 
 export const useModalStore = create<ModalState>()((set) => ({
@@ -142,16 +131,10 @@ export const useModalStore = create<ModalState>()((set) => ({
   // ── Post Ad Page: full-page, push on OPEN only ──
   isPostAdPage: false,
   openPostAdPage: () =>
-    { set({ isPostAdOpen: false, isPostAdPage: true, isPromoteBusinessPage: false }); tryPushHistory(); },
+    { set({ isPostAdOpen: false, isPostAdPage: true }); tryPushHistory(); },
   closePostAdPage: () =>
+    // NO push — back navigation is handled by popstate or navigateBack()
     { set({ isPostAdPage: false }); },
-
-  // ── Promote Business Page: full-page, push on OPEN only ──
-  isPromoteBusinessPage: false,
-  openPromoteBusinessPage: () =>
-    { set({ isPromoteBusinessPage: true, isPostAdPage: false }); tryPushHistory(); },
-  closePromoteBusinessPage: () =>
-    { set({ isPromoteBusinessPage: false }); },
 
   // ── Listing Detail Modal: overlay, no history ──
   selectedListing: null,
@@ -200,10 +183,7 @@ export const useModalStore = create<ModalState>()((set) => ({
     { set({ isListingDetailOpen: false, isListingFullView: true }); tryPushHistory(); },
   closeListingFullView: () =>
     // NO push — back navigation is handled by popstate or navigateBack()
-    // Keep selectedListing for back-navigation restore
-    { set({ isListingFullView: false }); },
-  setListingForFullView: (listing) =>
-    { set({ selectedListing: listing, isListingDetailOpen: false, isListingFullView: true }); tryPushHistory(); },
+    { set({ selectedListing: null, isListingFullView: false }); },
 
   // ── Event Full View: full-page, push on OPEN only ──
   isEventFullView: false,
@@ -211,14 +191,7 @@ export const useModalStore = create<ModalState>()((set) => ({
     { set({ isEventDetailOpen: false, isEventFullView: true }); tryPushHistory(); },
   closeEventFullView: () =>
     // NO push — back navigation is handled by popstate or navigateBack()
-    // Keep selectedEvent for back-navigation restore
-    { set({ isEventFullView: false }); },
-  setEventForFullView: (event) =>
-    { set({ selectedEvent: event, isEventDetailOpen: false, isEventFullView: true }); tryPushHistory(); },
-
-  // ── Article Reading View restore helper ──
-  setArticleForReadingView: (article) =>
-    { set({ selectedArticle: article, isArticleDetailOpen: false, isArticleReadingView: true }); tryPushHistory(); },
+    { set({ selectedEvent: null, isEventFullView: false }); },
 
   // ── Auth Modal: overlay, no history ──
   isAuthOpen: false,
@@ -240,8 +213,4 @@ export const useModalStore = create<ModalState>()((set) => ({
   // ── Listings refresh key ──
   listingsRefreshKey: 0,
   bumpListingsRefreshKey: () => set((s) => ({ listingsRefreshKey: s.listingsRefreshKey + 1 })),
-
-  // ── Editing flyer ID ──
-  editingFlyerId: null,
-  setEditingFlyerId: (id) => set({ editingFlyerId: id }),
 }));

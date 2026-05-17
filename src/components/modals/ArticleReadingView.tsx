@@ -52,6 +52,38 @@ export function ArticleReadingView() {
     }
   }, [isArticleReadingView]);
 
+  // Show loading skeleton while fetching data on reload
+  if (isArticleReadingView && !selectedArticle) {
+    return (
+      <div className="w-full">
+        <div className="border-b bg-muted/30">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
+            <div className="h-8 w-40 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <div className="h-10 w-3/4 bg-muted animate-pulse rounded mb-6" />
+          <div className="flex items-center gap-3 mb-8">
+            <div className="size-11 rounded-full bg-muted animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+              <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+            </div>
+          </div>
+          <div className="aspect-[16/8] w-full rounded-2xl bg-muted animate-pulse mb-8" />
+          <div className="space-y-3">
+            <div className="h-3 w-full bg-muted animate-pulse rounded" />
+            <div className="h-3 w-full bg-muted animate-pulse rounded" />
+            <div className="h-3 w-4/5 bg-muted animate-pulse rounded" />
+            <div className="h-3 w-full bg-muted animate-pulse rounded" />
+            <div className="h-3 w-3/4 bg-muted animate-pulse rounded" />
+            <div className="h-3 w-5/6 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isArticleReadingView || !selectedArticle) return null;
 
   const article = selectedArticle;

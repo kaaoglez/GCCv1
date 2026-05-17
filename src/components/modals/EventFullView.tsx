@@ -77,6 +77,37 @@ export function EventFullView() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [isZoomed, zoom, exitZoom]);
 
+  // Show loading skeleton while fetching data on reload
+  if (isEventFullView && !selectedEvent) {
+    return (
+      <div className="w-full">
+        <div className="border-b bg-muted/30">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
+            <div className="h-8 w-40 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="lg:col-span-3 space-y-4">
+              <div className="aspect-[16/9] w-full rounded-2xl bg-muted animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                <div className="h-3 w-3/4 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+            <div className="lg:col-span-2 space-y-5">
+              <div className="h-8 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="h-12 w-full bg-muted animate-pulse rounded-xl" />
+              <div className="h-12 w-full bg-muted animate-pulse rounded-xl" />
+              <div className="h-10 w-full bg-muted animate-pulse rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isEventFullView || !selectedEvent) return null;
 
   const event = selectedEvent;

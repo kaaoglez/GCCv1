@@ -1,9 +1,9 @@
 // Gran Canaria Conecta - HeroSection Component
-// Full-width hero with configurable background image, gradient overlay, search bar, and CTAs
+// Full-width hero with gradient overlay, search bar, and CTAs
 
 'use client';
 
-import { useState, useEffect, useSyncExternalStore, useCallback } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Plus, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,22 +20,6 @@ import { useModalStore } from '@/lib/modal-store';
 import { useSession } from 'next-auth/react';
 import type { CategoryDTO } from '@/lib/types';
 
-interface HeroSettings {
-  hero_image: string;
-  hero_height: string;
-  hero_title: string;
-  hero_subtitle: string;
-  hero_overlay_opacity: string;
-}
-
-const DEFAULT_SETTINGS: HeroSettings = {
-  hero_image: '/uploads/hero-gran-canaria.png',
-  hero_height: '600',
-  hero_title: '',
-  hero_subtitle: '',
-  hero_overlay_opacity: '0.6',
-};
-
 export function HeroSection() {
   const { locale, tp } = useI18n();
   const openPostAdPage = useModalStore((s) => s.openPostAdPage);
@@ -45,28 +29,11 @@ export function HeroSection() {
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [searchText, setSearchText] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
-  const [settings, setSettings] = useState<HeroSettings>(DEFAULT_SETTINGS);
-  const [imageLoaded, setImageLoaded] = useState(false);
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false
   );
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/site-settings');
-        if (res.ok) {
-          const data = await res.json();
-          setSettings({ ...DEFAULT_SETTINGS, ...data });
-        }
-      } catch {
-        // Use defaults
-      }
-    }
-    fetchData();
-  }, []);
 
   useEffect(() => {
     async function fetchCategories() {
@@ -101,47 +68,23 @@ export function HeroSection() {
     }
   };
 
-  const heroHeight = parseInt(settings.hero_height, 10) || 600;
-  const overlayOpacity = parseFloat(settings.hero_overlay_opacity) || 0.6;
-
-  // Title: use custom if set, otherwise i18n default
-  const displayTitle = settings.hero_title || tp('hero', 'title');
-  const displaySubtitle = settings.hero_subtitle || tp('hero', 'subtitle');
-
   if (!mounted) {
     return (
-      <section
-        className="relative w-full flex items-center overflow-hidden bg-muted"
-        style={{ minHeight: `${heroHeight}px` }}
-      />
+      <section className="relative w-full min-h-[520px] sm:min-h-[600px] flex items-center overflow-hidden bg-muted" />
     );
   }
 
   return (
-    <section
-      className="relative w-full flex items-center overflow-hidden"
-      style={{ minHeight: `${heroHeight}px` }}
-    >
+    <section className="relative w-full min-h-[520px] sm:min-h-[600px] flex items-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-        {/* Skeleton/shimmer while loading */}
-        {!imageLoaded && (
-          <div className="absolute inset-0 bg-muted animate-pulse" />
-        )}
         <img
-          src={settings.hero_image}
+          src="https://images.unsplash.com/photo-1509023464722-18d996393ca8?w=1920&h=800&fit=crop"
           alt="Gran Canaria landscape"
-          className={`h-full w-full object-cover transition-opacity duration-700 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageLoaded(true)}
+          className="h-full w-full object-cover"
         />
-        {/* Gradient overlay - configurable opacity */}
-        <div
-          className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"
-          style={{ opacity: overlayOpacity / 0.6 }}
-        />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       </div>
 
@@ -155,7 +98,7 @@ export function HeroSection() {
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-4"
           >
-            {displayTitle}
+            {tp('hero', 'title')}
           </motion.h1>
 
           {/* Subtitle */}
@@ -165,7 +108,7 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}
             className="text-base sm:text-lg md:text-xl text-white/80 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed"
           >
-            {displaySubtitle}
+            {tp('hero', 'subtitle')}
           </motion.p>
 
           {/* Search Bar */}

@@ -8,7 +8,7 @@ import { ROLE_LABELS, ROLE_PAGE_PERMISSIONS } from '@/lib/types';
 import {
   LogOut, Menu, Leaf, ChevronRight,
   LayoutDashboard, FileText, Sparkles, Users, FolderOpen, CreditCard, Newspaper,
-  ExternalLink, Bell, Crown, ShieldCheck, Eye, Shield, ShieldOff, Tag,
+  ExternalLink, Bell, Crown, ShieldCheck, Eye, Shield, ShieldOff, Tag, Palette,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -22,6 +22,7 @@ const allNavItems: { key: AdminPageKey; label: string; icon: React.ReactNode }[]
   { key: 'payments', label: 'Pagos', icon: <CreditCard className="w-5 h-5" /> },
   { key: 'flyers', label: 'Flyers', icon: <Newspaper className="w-5 h-5" /> },
   { key: 'plans', label: 'Planes Folletos', icon: <Tag className="w-5 h-5" /> },
+  { key: 'appearance', label: 'Apariencia', icon: <Palette className="w-5 h-5" /> },
 ];
 
 function getRoleLabel(role: string): string {
@@ -53,7 +54,7 @@ function SidebarContent({ activePage, onNavigate, onBack, onLogout, userRole, us
   userRole: UserRole | null;
   userName: string | null;
 }) {
-  const allowedPages: AdminPageKey[] = userRole ? (ROLE_PAGE_PERMISSIONS[userRole] || []) : [];
+  const allowedPages: AdminPageKey[] = userRole ? (ROLE_PAGE_PERMISSIONS[userRole] || []) : (allNavItems.map(i => i.key) as AdminPageKey[]);
   const navItems = allNavItems.filter((item) => allowedPages.includes(item.key));
 
   return (
@@ -181,6 +182,7 @@ export function AdminLayout({ children, onBack }: { children: React.ReactNode; o
     payments: 'Pagos',
     flyers: 'Flyers',
     plans: 'Planes de Folletos',
+    appearance: 'Apariencia',
   };
 
   const pageTitle = pageTitles[activePage] || 'Dashboard';

@@ -12,6 +12,7 @@ import { AdminCategories } from './AdminCategories';
 import { AdminPayments } from './AdminPayments';
 import { AdminFlyers } from './AdminFlyers';
 import { AdminFlyerPlans } from './AdminFlyerPlans';
+import { AdminAppearance } from './AdminAppearance';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import type { UserRole } from '@/lib/types';
@@ -25,6 +26,7 @@ const pages: Record<string, React.FC> = {
   payments: AdminPayments,
   flyers: AdminFlyers,
   plans: AdminFlyerPlans,
+  appearance: AdminAppearance,
 };
 
 export function AdminPage() {

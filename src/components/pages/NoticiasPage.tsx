@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/pagination';
 import { ArticleCard } from '@/components/shared/ArticleCard';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { AdBannerSlot } from '@/components/shared/AdBannerSlot';
 import { useI18n } from '@/hooks/use-i18n';
 import { ARTICLE_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -131,7 +132,7 @@ export function NoticiasPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-8">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         {/* Search input */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -177,6 +178,11 @@ export function NoticiasPage() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* News banner slot */}
+      <div className="mb-6">
+        <AdBannerSlot position="news" variant="inline" />
       </div>
 
       {/* Active search indicator */}

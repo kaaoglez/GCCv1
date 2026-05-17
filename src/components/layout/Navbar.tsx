@@ -44,6 +44,7 @@ import { NAV_ITEMS, APP_CONFIG } from '@/lib/constants';
 import { useAdminStore } from '@/lib/admin-store';
 import { useModalStore, type PageView } from '@/lib/modal-store';
 import { navigateTo, navigateToSameOrHome } from '@/hooks/use-navigation';
+import { AdBannerSlot } from '@/components/shared/AdBannerSlot';
 
 /* ── Hydration-safe client check via useSyncExternalStore ─────────── */
 const emptySubscribe = () => () => {};
@@ -243,17 +244,25 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      {/* ── Top Bar: Promo Space (LEFT) + CTA Buttons (RIGHT) ── */}
-      <div className="bg-primary text-primary-foreground">
-        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Left: Promotional / Ad space */}
-          <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
-            <Megaphone className="h-4 w-4 shrink-0 opacity-80" />
-            <p className="text-sm font-medium truncate opacity-90">
-              {locale === 'es'
-                ? '🌿 Tu marketplace de comunidad en Gran Canaria — Anuncia gratis o destaca tu negocio'
-                : '🌿 Your Gran Canaria community marketplace — List for free or boost your business'}
-            </p>
+      {/* ── Top Bar: Flexible — compact without banner, expanded with banner ── */}
+      <div className="bg-primary text-primary-foreground transition-all duration-300">
+        <div className="mx-auto flex min-h-12 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-1.5">
+          {/* Left: Banner billboard or fallback promo text */}
+          <div className="flex-1 min-w-0 relative flex items-center overflow-hidden" style={{ minHeight: '36px' }}>
+            <AdBannerSlot
+              position="nav_promo"
+              variant="nav_promo"
+              fallback={
+                <div className="flex items-center gap-2 min-w-0">
+                  <Megaphone className="h-4 w-4 shrink-0 opacity-80" />
+                  <p className="text-sm font-medium truncate opacity-90">
+                    {locale === 'es'
+                      ? '🌿 Tu marketplace de comunidad en Gran Canaria'
+                      : '🌿 Your Gran Canaria community marketplace'}
+                  </p>
+                </div>
+              }
+            />
           </div>
 
           {/* Right: CTA Buttons */}

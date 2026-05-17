@@ -22,6 +22,8 @@ import { AdminPage } from '@/components/admin/AdminPage';
 import { AnunciosPage } from '@/components/pages/AnunciosPage';
 import { EventosPage } from '@/components/pages/EventosPage';
 
+import { AdBannerSlot } from '@/components/shared/AdBannerSlot';
+import { PageWithSidebar, MobileSidebarBanner, MobileExtraBanner } from '@/components/shared/PageWithSidebar';
 import { CategoriasPage } from '@/components/pages/CategoriasPage';
 import { NoticiasPage } from '@/components/pages/NoticiasPage';
 import { ReciclajePage } from '@/components/pages/ReciclajePage';
@@ -96,17 +98,29 @@ export default function Home() {
       return (
         <>
           <HeroSection />
+          {/* Banner slot: leaderboard after hero */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6">
+            <AdBannerSlot position="leaderboard" variant="leaderboard" />
+          </div>
           <div className="py-12 md:py-16">
             <FeaturedSlider />
           </div>
           <div className="bg-muted/30">
             <CategoryGrid />
           </div>
+          {/* Banner slot: between listings and events */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+            <AdBannerSlot position="between_sections" variant="inline" />
+          </div>
           <LatestListings />
           <div className="bg-muted/30">
             <EventsSection />
           </div>
           <BusinessDirectory />
+          {/* Banner slot: sidebar style in directory area */}
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+            <AdBannerSlot position="directory" variant="inline" />
+          </div>
           <PricingSection />
           <div className="bg-muted/30">
             <NewsSection />
@@ -117,19 +131,19 @@ export default function Home() {
       );
     }
 
-    if (currentView === 'anuncios') return <AnunciosPage />;
-    if (currentView === 'eventos') return <EventosPage />;
-    if (currentView === 'news') return <NoticiasPage />;
-    if (currentView === 'directory') return <DirectorioPage />;
-    if (currentView === 'recycling') return <ReciclajePage />;
-    if (currentView === 'flyers') return <FlyersPage />;
-    if (currentView === 'categorias') return <CategoriasPage />;
-    if (currentView === 'messages') return <MessagesPage />;
-    if (currentView === 'perfil') return <PerfilPage />;
-    if (currentView === 'mis-anuncios') return <MisAnunciosPage />;
-    if (currentView === 'mis-flyers') return <MisFlyersPage />;
-    if (currentView === 'crear-folleto') return <CrearFolletoPage />;
-    if (currentView === 'favoritos') return <FavoritosPage />;
+    if (currentView === 'anuncios') return (<><PageWithSidebar><AnunciosPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'eventos') return (<><PageWithSidebar><EventosPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'news') return (<><PageWithSidebar><NoticiasPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'directory') return (<><PageWithSidebar extraPositions={['directory']}><DirectorioPage /></PageWithSidebar><MobileSidebarBanner /><MobileExtraBanner position="directory" /></>);
+    if (currentView === 'recycling') return (<><PageWithSidebar><ReciclajePage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'flyers') return (<><PageWithSidebar><FlyersPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'categorias') return (<><PageWithSidebar><CategoriasPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'messages') return (<><PageWithSidebar><MessagesPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'perfil') return (<><PageWithSidebar><PerfilPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'mis-anuncios') return (<><PageWithSidebar><MisAnunciosPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'mis-flyers') return (<><PageWithSidebar><MisFlyersPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'crear-folleto') return (<><PageWithSidebar><CrearFolletoPage /></PageWithSidebar><MobileSidebarBanner /></>);
+    if (currentView === 'favoritos') return (<><PageWithSidebar><FavoritosPage /></PageWithSidebar><MobileSidebarBanner /></>);
 
     return null;
   };

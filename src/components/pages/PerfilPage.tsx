@@ -126,7 +126,7 @@ export function PerfilPage() {
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [stats, setStats] = useState({ listings: 0, favorites: 0, messages: 0, flyers: 0 });
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -136,13 +136,21 @@ export function PerfilPage() {
   const adminSetSessionRole = useAdminStore((s) => s.setSessionRole);
   const [adminLoading, setAdminLoading] = useState(false);
 
-  const fetchProfileData = useCallback(async () => {
-    if (!session?.user?.id) {
-      setLoading(false);
-      return;
-    }
+  // Build immediate user data from session (no API call needed)
+  const sessionUser = session?.user ? {
+    name: session.user.name || '',
+    email: session.user.email || '',
+    phone: null,
+    municipality: null,
+    avatar: session.user.image || null,
+    role: (session.user as { role?: string }).role || 'MEMBER',
+    isVerified: (session.user as { isVerified?: boolean }).isVerified || false,
+  } : null;
 
-    setLoading(true);
+  const fetchProfileData = useCallback(async () => {
+    if (!session?.user?.id) return;
+
+    setStatsLoading(true);
     try {
       const userId = session.user.id;
       const [profileRes, listingsRes, favsRes, msgsRes, flyersRes] = await Promise.all([
@@ -170,19 +178,9 @@ export function PerfilPage() {
         flyers: flyersData.total || 0,
       });
     } catch {
-      if (session?.user) {
-        setProfile({
-          name: session.user.name || '',
-          email: session.user.email || '',
-          phone: null,
-          municipality: null,
-          avatar: session.user.image || null,
-          role: (session.user as { role?: string }).role || 'MEMBER',
-          isVerified: (session.user as { isVerified?: boolean }).isVerified || false,
-        });
-      }
+      // silent — session data is already showing
     } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
   }, [session?.user?.id]);
 
@@ -190,21 +188,8 @@ export function PerfilPage() {
     fetchProfileData();
   }, [fetchProfileData]);
 
-  // Loading
-  if (status === 'loading') {
-    return (
-      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
-        <div className="space-y-4">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-52 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
   // Not logged in
-  if (!session) {
+  if (!session && status !== 'loading') {
     return (
       <div className="w-full max-w-md mx-auto px-4 sm:px-6 py-16 text-center space-y-4">
         <div className="flex justify-center">
@@ -225,14 +210,15 @@ export function PerfilPage() {
     );
   }
 
-  const user = profile || {
-    name: session.user.name || '',
-    email: session.user.email || '',
+  // Use profile from API if available, otherwise use session data (immediate)
+  const user = profile || sessionUser || {
+    name: '',
+    email: '',
     phone: null,
     municipality: null,
-    avatar: session.user.image || null,
-    role: (session.user as { role?: string }).role || 'MEMBER',
-    isVerified: (session.user as { isVerified?: boolean }).isVerified || false,
+    avatar: null,
+    role: 'MEMBER' as const,
+    isVerified: false,
   };
 
   const initials = user.name?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || 'U';
@@ -294,13 +280,8 @@ export function PerfilPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {loading ? (
-        <div className="space-y-6">
-          <Skeleton className="h-56 w-full rounded-xl" />
-          <Skeleton className="h-36 w-full rounded-xl" />
-        </div>
-      ) : (
-        <>
+      {/* Profile card always visible — uses session data immediately */}
+      <>
           {/* ── Profile Card ─────────────────────────── */}
           <Card className="overflow-hidden border-border">
             {/* Cover — modern blue gradient */}
@@ -524,7 +505,7 @@ export function PerfilPage() {
                 <FileText className="size-5" />
               </div>
               <div>
-                <p className="text-xl font-bold text-foreground">{stats.listings}</p>
+                <span className="text-xl font-bold text-foreground">{statsLoading ? <Skeleton className="h-5 w-6 inline-block rounded" /> : stats.listings}</span>
                 <p className="text-xs text-muted-foreground">{t('Anuncios', 'Listings', locale)}</p>
               </div>
             </button>
@@ -537,7 +518,7 @@ export function PerfilPage() {
                 <Heart className="size-5" />
               </div>
               <div>
-                <p className="text-xl font-bold text-foreground">{stats.favorites}</p>
+                <span className="text-xl font-bold text-foreground">{statsLoading ? <Skeleton className="h-5 w-6 inline-block rounded" /> : stats.favorites}</span>
                 <p className="text-xs text-muted-foreground">{t('Favoritos', 'Favorites', locale)}</p>
               </div>
             </button>
@@ -550,7 +531,7 @@ export function PerfilPage() {
                 <MessageSquare className="size-5" />
               </div>
               <div>
-                <p className="text-xl font-bold text-foreground">{stats.messages}</p>
+                <span className="text-xl font-bold text-foreground">{statsLoading ? <Skeleton className="h-5 w-6 inline-block rounded" /> : stats.messages}</span>
                 <p className="text-xs text-muted-foreground">{t('Mensajes', 'Messages', locale)}</p>
               </div>
             </button>
@@ -581,7 +562,6 @@ export function PerfilPage() {
             </Button>
           </div>
         </>
-      )}
 
       {/* ── Edit Dialog ──────────────────────────────── */}
       {session && (

@@ -113,7 +113,7 @@ export function navigateTo(view: PageView, extra?: { categoryId?: string }) {
     __skipHistoryPush(false);
   }
   pushNavigationState();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 }
 
 // ── Navigate to the same page or home (replace, not push) ──
@@ -140,7 +140,7 @@ export function navigateToSameOrHome(view: PageView) {
   } else {
     pushNavigationState();
   }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 }
 
 // ── Navigate back ──

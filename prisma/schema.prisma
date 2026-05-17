@@ -250,6 +250,36 @@ model FlyerPlan {
   updatedAt      DateTime @updatedAt
 }
 
+model AdBanner {
+  id            String    @id @default(cuid())
+  position      String    // leaderboard, sidebar, news, directory, between_sections
+  title         String?
+  imageUrl      String
+  linkUrl       String?
+  altText       String?
+  businessName  String?
+  businessEmail String?
+  businessPhone String?
+  businessSite  String?
+  description   String?
+  width         Int?
+  height        Int?
+  active        Boolean   @default(true)
+  sortOrder     Int       @default(0)
+  clicks        Int       @default(0)
+  impressions   Int       @default(0)
+  validFrom     DateTime  @default(now())
+  validUntil    DateTime?
+  paymentId     String?
+  userId        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([position, active, sortOrder])
+  @@index([validFrom, validUntil])
+  @@index([userId])
+}
+
 model RecyclingPoint {
   id           String   @id
   name         String

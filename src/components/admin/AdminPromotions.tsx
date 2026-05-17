@@ -6,11 +6,12 @@ import { getIcon } from '@/lib/icons';
 import { getRelativeTime, formatNumber } from '@/lib/format';
 import {
   Search, Sparkles, Star, Store, Image as ImageIcon, Zap,
-  Eye, MousePointer, ToggleLeft, ToggleRight, ChevronRight,
+  Eye, MousePointer, ToggleLeft, ToggleRight, ChevronRight, Copy, Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -269,46 +270,323 @@ function BusinessDirectoryTab({ locale, tp }: { locale: Locale; tp: (k: string) 
   );
 }
 
-// ── Tab 4: Banner Ads ───────────────────────────────────────────
+// ── Tab 4: Banner Ads (Full CRUD) ─────────────────────────────────
 function BannerAdsTab({ locale, tp }: { locale: Locale; tp: (k: string) => string }) {
-  const positions = [
-    { id: 'header', labelEs: 'Cabecera de inicio', labelEn: 'Homepage header', icon: 'layout' },
-    { id: 'sidebar', labelEs: 'Barra lateral', labelEn: 'Sidebar', icon: 'panel-right' },
-    { id: 'between-sections', labelEs: 'Entre secciones', labelEn: 'Between sections', icon: 'rows-3' },
-    { id: 'category-top', labelEs: 'Top de categoría', labelEn: 'Category page top', icon: 'folder-open' },
+  const [banners, setBanners] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [filterPos, setFilterPos] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [form, setForm] = useState({
+    position: 'leaderboard', title: '', imageUrl: '', linkUrl: '', altText: '',
+    businessName: '', businessEmail: '', businessPhone: '', businessSite: '',
+    description: '', width: '', height: '', active: true, sortOrder: 0, validFrom: '', validUntil: '',
+  });
+
+  const POSITIONS = [
+    { id: 'nav_promo', labelEs: 'Barra Superior', labelEn: 'Top Bar (Navbar)', size: '728 × 90 px' },
+    { id: 'leaderboard', labelEs: 'Cabecera (Leaderboard)', labelEn: 'Header (Leaderboard)', size: '728 × 90 px' },
+    { id: 'sidebar', labelEs: 'Barra Lateral', labelEn: 'Sidebar', size: '300 × 250 px' },
+    { id: 'between_sections', labelEs: 'Entre Secciones', labelEn: 'Between Sections', size: 'Responsive' },
+    { id: 'news', labelEs: 'Noticias', labelEn: 'News', size: '728 × 90 px' },
+    { id: 'directory', labelEs: 'Directorio', labelEn: 'Directory', size: 'Responsive' },
   ];
+
+  const fetchBanners = useCallback(() => {
+    setLoading(true);
+    const q = filterPos ? `?position=${filterPos}` : '';
+    fetch('/api/admin/banners' + q)
+      .then((r) => r.json())
+      .then((data) => { setBanners(Array.isArray(data) ? data : []); })
+      .catch(() => setBanners([]))
+      .finally(() => setLoading(false));
+  }, [filterPos]);
+
+  useEffect(() => { fetchBanners(); }, [fetchBanners]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ position: 'leaderboard', title: '', imageUrl: '', linkUrl: '', altText: '', businessName: '', businessEmail: '', businessPhone: '', businessSite: '', description: '', width: '', height: '', active: true, sortOrder: 0, validFrom: '', validUntil: '' });
+    setShowForm(true);
+  };
+
+  const openEdit = (b: any) => {
+    setEditing(b);
+    setForm({
+      position: b.position, title: b.title || '', imageUrl: b.imageUrl || '', linkUrl: b.linkUrl || '', altText: b.altText || '',
+      businessName: b.businessName || '', businessEmail: b.businessEmail || '', businessPhone: b.businessPhone || '', businessSite: b.businessSite || '',
+      description: b.description || '', width: b.width?.toString() || '', height: b.height?.toString() || '', active: b.active, sortOrder: b.sortOrder || 0,
+      validFrom: b.validFrom ? b.validFrom.slice(0, 10) : '', validUntil: b.validUntil ? b.validUntil.slice(0, 10) : '',
+    });
+    setShowForm(true);
+  };
+
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    if (!form.position || !form.imageUrl) {
+      toast({ title: locale === 'es' ? 'Error' : 'Error', description: locale === 'es' ? 'Posición e imagen son obligatorios' : 'Position and image are required', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = { ...form, id: editing?.id };
+      const res = await fetch('/api/admin/banners', {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setShowForm(false);
+        fetchBanners();
+        toast({ title: editing ? (locale === 'es' ? 'Banner actualizado' : 'Banner updated') : (locale === 'es' ? 'Banner creado' : 'Banner created') });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast({ title: locale === 'es' ? 'Error' : 'Error', description: errData.error || res.statusText, variant: 'destructive' });
+      }
+    } catch (err) {
+      console.error('[BannerAdsTab save]', err);
+      toast({ title: locale === 'es' ? 'Error de conexión' : 'Connection error', variant: 'destructive' });
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(locale === 'es' ? '¿Eliminar este banner?' : 'Delete this banner?')) return;
+    try {
+      await fetch('/api/admin/banners?id=' + id, { method: 'DELETE' });
+      fetchBanners();
+    } catch (err) { console.error('[BannerAdsTab delete]', err); }
+  };
+
+  const handleDuplicate = async (b: any) => {
+    // Create a copy without id — server assigns new id
+    const copy = { ...b };
+    delete copy.id;
+    delete copy.createdAt;
+    delete copy.updatedAt;
+    delete copy.impressions;
+    delete copy.clicks;
+    copy.title = (copy.title || '') + (locale === 'es' ? ' (copia)' : ' (copy)');
+    try {
+      const res = await fetch('/api/admin/banners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(copy),
+      });
+      if (res.ok) {
+        toast({ title: locale === 'es' ? 'Banner duplicado' : 'Banner duplicated' });
+        fetchBanners();
+      } else {
+        toast({ title: locale === 'es' ? 'Error' : 'Error', description: locale === 'es' ? 'No se pudo duplicar' : 'Could not duplicate', variant: 'destructive' });
+      }
+    } catch (err) { console.error('[BannerAdsTab duplicate]', err); }
+  };
+
+  const handleToggle = async (b: any) => {
+    try {
+      await fetch('/api/admin/banners', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, active: !b.active }),
+      });
+      fetchBanners();
+    } catch {}
+  };
+
+  const uploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', 'listing');
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (res.ok) { const data = await res.json(); setForm((f: any) => ({ ...f, imageUrl: data.url })); }
+    } catch (err) { console.error('[BannerAdsTab upload]', err); }
+  };
+
+  const posLabel = (id: string) => POSITIONS.find((p) => p.id === id);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">
-          Gestiona los banners publicitarios que aparecen en diferentes posiciones del sitio.
+          Gestiona los banners publicitarios del sitio. {banners.length} banner(es) total.
         </p>
-        <Button size="sm">
+        <Button size="sm" onClick={openCreate}>
           <ImageIcon className="w-4 h-4 mr-2" />
-          {tp('admin.newBanner')}
+          {locale === 'es' ? 'Nuevo Banner' : 'New Banner'}
         </Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {positions.map((pos) => (
-          <Card key={pos.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  {getIcon(pos.icon, 'w-5 h-5 text-muted-foreground')}
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{locale === 'es' ? pos.labelEs : pos.labelEn}</p>
-                  <p className="text-xs text-muted-foreground">Posición: {pos.id}</p>
-                </div>
-              </div>
-              <div className="h-24 rounded-lg bg-muted/50 border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground">
-                Sin banner activo
-              </div>
-            </CardContent>
-          </Card>
+
+      {/* Filter */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => setFilterPos('')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${!filterPos ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+          {locale === 'es' ? 'Todas' : 'All'}
+        </button>
+        {POSITIONS.map((p) => (
+          <button key={p.id} onClick={() => setFilterPos(p.id)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filterPos === p.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+            {locale === 'es' ? p.labelEs : p.labelEn}
+          </button>
         ))}
       </div>
+
+      {/* Banner List */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{Array.from({ length: 4 }).map((_, i) => <Card key={i}><CardContent className="p-4"><Skeleton className="h-32 w-full rounded-lg" /></CardContent></Card>)}</div>
+      ) : banners.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
+          <p>{locale === 'es' ? 'No hay banners' : 'No banners'}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={openCreate}>{locale === 'es' ? 'Crear Banner' : 'Create Banner'}</Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {banners.map((b) => {
+            const pos = posLabel(b.position);
+            const isExpired = b.validUntil && new Date(b.validUntil) < new Date();
+            return (
+              <Card key={b.id} className={`overflow-hidden transition-all ${!b.active ? 'opacity-50' : ''} ${isExpired ? 'ring-2 ring-red-300' : ''}`}>
+                <div className="relative">
+                  <img src={b.imageUrl} alt={b.altText || ''} className="w-full h-32 object-cover bg-muted" />
+                  <div className="absolute top-2 left-2 flex gap-1">
+                    <Badge className="bg-primary/90 text-white border-transparent text-[10px]">{locale === 'es' ? pos?.labelEs : pos?.labelEn}</Badge>
+                    {!b.active && <Badge className="bg-gray-500 text-white border-transparent text-[10px]">OFF</Badge>}
+                    {isExpired && <Badge className="bg-red-500 text-white border-transparent text-[10px]">{locale === 'es' ? 'Expirado' : 'Expired'}</Badge>}
+                  </div>
+                </div>
+                <CardContent className="p-3 space-y-2">
+                  <p className="font-medium text-sm truncate">{b.title || b.description || (locale === 'es' ? 'Sin título' : 'No title')}</p>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{b.impressions || 0}</span>
+                    <span className="flex items-center gap-1"><MousePointer className="w-3 h-3" />{b.clicks || 0}</span>
+                    {b.width && b.height ? <span>{b.width}×{b.height}</span> : <span>{pos?.size}</span>}
+                  </div>
+                  <div className="flex items-center gap-1 pt-1">
+                    <button onClick={() => handleToggle(b)} className="focus:outline-none">
+                      {b.active ? <ToggleRight className="w-7 h-7 text-primary" /> : <ToggleLeft className="w-7 h-7 text-muted-foreground" />}
+                    </button>
+                    <div className="flex-1" />
+                    <Button variant="ghost" size="sm" onClick={() => handleDuplicate(b)} title={locale === 'es' ? 'Duplicar banner' : 'Duplicate banner'}>
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(b)}>{locale === 'es' ? 'Editar' : 'Edit'}</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(b.id)} title={locale === 'es' ? 'Eliminar banner' : 'Delete banner'}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? (locale === 'es' ? 'Editar Banner' : 'Edit Banner') : (locale === 'es' ? 'Nuevo Banner' : 'New Banner')}</DialogTitle>
+            <DialogDescription>
+              {locale === 'es' ? 'Configura el banner publicitario' : 'Configure the ad banner'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Position */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Posición *</label>
+              <select value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full h-10 rounded-md border bg-background px-3 text-sm">
+                {POSITIONS.map((p) => (
+                  <option key={p.id} value={p.id}>{locale === 'es' ? p.labelEs : p.labelEn} ({p.size})</option>
+                ))}
+              </select>
+            </div>
+            {/* Image upload */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Imagen *</label>
+              <input type="file" accept="image/*" onChange={uploadImage} className="w-full text-sm" />
+              {form.imageUrl && (
+                <div className="relative rounded-lg overflow-hidden border">
+                  <img src={form.imageUrl} alt="Preview" className="w-full h-24 object-cover" />
+                  <button onClick={() => setForm({ ...form, imageUrl: '' })} className="absolute top-1 right-1 size-6 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-destructive">✕</button>
+                </div>
+              )}
+              {!form.imageUrl && <Input placeholder="O pega la URL de la imagen" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />}
+            </div>
+            {/* Title */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{locale === 'es' ? 'Título' : 'Title'}</label>
+              <Input placeholder={locale === 'es' ? 'Título del banner (opcional)' : 'Banner title (optional)'} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            </div>
+            {/* Link URL */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">URL del enlace</label>
+              <Input placeholder="https://www.tu-sitio.com" value={form.linkUrl} onChange={(e) => setForm({ ...form, linkUrl: e.target.value })} />
+            </div>
+            {/* Business info */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Negocio' : 'Business'}</label>
+                <Input placeholder={locale === 'es' ? 'Nombre del negocio' : 'Business name'} value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input placeholder="email@site.com" value={form.businessEmail} onChange={(e) => setForm({ ...form, businessEmail: e.target.value })} />
+              </div>
+            </div>
+            {/* Description */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{locale === 'es' ? 'Descripción (overlay)' : 'Description (overlay)'}</label>
+              <Input placeholder={locale === 'es' ? 'Texto que aparece sobre la imagen' : 'Text shown over the image'} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            {/* Banner Dimensions */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Ancho (px)' : 'Width (px)'}</label>
+                <Input type="number" placeholder={locale === 'es' ? 'ej: 728' : 'e.g. 728'} value={form.width} onChange={(e) => setForm({ ...form, width: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Alto (px)' : 'Height (px)'}</label>
+                <Input type="number" placeholder={locale === 'es' ? 'ej: 90' : 'e.g. 90'} value={form.height} onChange={(e) => setForm({ ...form, height: e.target.value })} />
+              </div>
+            </div>
+            {/* Dates + Sort + Active */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Desde' : 'Valid from'}</label>
+                <Input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Hasta' : 'Valid until'}</label>
+                <Input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Orden' : 'Sort order'}</label>
+                <Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{locale === 'es' ? 'Estado' : 'Status'}</label>
+                <button onClick={() => setForm({ ...form, active: !form.active })} className="flex items-center gap-2 h-10 px-3 rounded-md border w-full">
+                  {form.active ? <ToggleRight className="w-6 h-6 text-primary" /> : <ToggleLeft className="w-6 h-6 text-muted-foreground" />}
+                  <span className="text-sm">{form.active ? (locale === 'es' ? 'Activo' : 'Active') : (locale === 'es' ? 'Inactivo' : 'Inactive')}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowForm(false)}>{locale === 'es' ? 'Cancelar' : 'Cancel'}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.position || !form.imageUrl}>
+              {saving ? (locale === 'es' ? 'Guardando...' : 'Saving...') : (locale === 'es' ? 'Guardar' : 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
